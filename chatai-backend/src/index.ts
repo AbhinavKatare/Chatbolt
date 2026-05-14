@@ -23,12 +23,14 @@ import calendarRoutes from './routes/calendar'
 import workflowRoutes from './routes/workflows'
 import reportsRoutes from './routes/reports'
 import { initJobs } from './jobs/daily-report'
+import { startKeepAlive } from './jobs/keep-alive'
 
 const app = express()
 const PORT = process.env.PORT || 4000
 
 // Start cron jobs
 initJobs()
+startKeepAlive()
 
 // ── Stripe webhook needs raw body ─────────────────────────────────
 app.use('/billing/webhook', express.raw({ type: 'application/json' }))
