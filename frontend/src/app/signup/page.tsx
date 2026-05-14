@@ -61,8 +61,8 @@ export default function SignupPage() {
             </div>
             <span className="display-title text-2xl text-[#1A1A1A] tracking-tight">Chatbolt</span>
           </Link>
-          <h1 className="display-title text-4xl text-[#1A1A1A] mb-3 tracking-tighter">Start for free</h1>
-          <p className="text-[#555555] text-sm">Build your first AI agent in minutes</p>
+          <h1 className="display-title text-4xl text-[#1A1A1A] mb-3 tracking-tighter">Scale your business</h1>
+          <p className="text-[#555555] text-sm">Deploy your AI workforce in minutes</p>
         </div>
 
         <div className="card p-8 bg-[#FFFFFF]/80 backdrop-blur-xl border border-black/5 relative overflow-hidden">
@@ -113,12 +113,12 @@ export default function SignupPage() {
               type="submit" 
               disabled={loading}
             >
-              {loading ? 'Creating Account...' : 'Create Free Account'}
+              {loading ? 'Creating Account...' : 'Create Account'}
             </button>
           </form>
           
           <p className="text-center mt-6 text-xs text-[#555555]/60">
-            500 free credits included. No credit card required.
+            Choose a plan in the next step.
           </p>
         </div>
 

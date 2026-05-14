@@ -18,32 +18,23 @@ import {
 
 const plans = [
   { 
-    id: 'hobby', 
-    name: 'Hobby', 
-    price: 32, 
-    credits: '500', 
-    agents: 1, 
-    features: ['1 Specialized Agent', '500 Neural Credits/mo', 'Floating Website Widget', 'Community Support', 'Basic Analytics'],
-    desc: 'Perfect for side projects and small experiments.'
-  },
-  { 
-    id: 'standard', 
-    name: 'Standard', 
-    price: 120, 
-    credits: '4,000', 
-    agents: 3, 
-    features: ['3 Orchestrated Agents', '4,000 Neural Credits/mo', 'Omni-channel Deployment', 'Priority Integration Support', 'Advanced Logic Chains', 'Custom Branding'], 
-    highlight: true,
-    desc: 'For growing businesses automating core workflows.'
-  },
-  { 
     id: 'pro', 
     name: 'Pro', 
-    price: 400, 
-    credits: '15,000', 
+    price: 25, 
+    credits: '2,500', 
+    agents: 3, 
+    features: ['3 Orchestrated Agents', '2,500 Neural Credits/mo', 'Web Research capabilities', 'WhatsApp + Email Engine', 'Standard API Access', 'Standard Support'], 
+    highlight: true,
+    desc: 'Serious automation for professionals.'
+  },
+  { 
+    id: 'premium', 
+    name: 'Premium', 
+    price: 59, 
+    credits: '10,000', 
     agents: 10, 
-    features: ['10 Elite Agents', '15,000 Neural Credits/mo', 'Voice & WhatsApp Engine', 'Full API Access', 'SSO & Advanced Security', 'Dedicated AI Architect'],
-    desc: 'Institutional-grade automation for full-scale operations.'
+    features: ['10 Elite Agents', '10,000 Neural Credits/mo', 'Custom Workflow Builder', 'Full API & Webhooks', 'Team Collaboration (3 seats)', 'Dedicated Success Manager'],
+    desc: 'The ultimate AI workforce for businesses.'
   },
 ]
 

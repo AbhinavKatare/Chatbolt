@@ -7,56 +7,38 @@ export default function Pricing() {
 
   const plans = [
     {
-      name: 'Hobby',
-      price: billingCycle === 'monthly' ? '₹2,700' : '₹2,160',
-      usd: billingCycle === 'monthly' ? '$32' : '$26',
-      tagline: 'Perfect to get started',
-      features: [
-        '1 AI Agent',
-        '500 message credits/month',
-        'Website widget',
-        'PDF + URL + text training',
-        'Basic analytics',
-        'Email support'
-      ],
-      cta: 'Start free trial',
-      featured: false
-    },
-    {
-      name: 'Standard',
-      price: billingCycle === 'monthly' ? '₹10,000' : '₹8,000',
-      usd: billingCycle === 'monthly' ? '$120' : '$96',
-      tagline: 'For growing businesses',
+      name: 'Pro',
+      price: billingCycle === 'monthly' ? '₹2,100' : '₹1,680',
+      usd: billingCycle === 'monthly' ? '$25' : '$20',
+      tagline: 'Serious automation for professionals',
       features: [
         '3 AI Agents',
-        '4,000 message credits/month',
-        'All channels (WhatsApp, Slack, Email)',
+        '2,500 message credits/month',
+        'Web research capabilities',
+        'WhatsApp + Email automation',
         'Salesforce integration',
-        'Google Sheets integration',
         'Full analytics dashboard',
-        'Remove Chatbolt branding',
-        'Priority support'
+        'Standard support'
       ],
-      cta: 'Get started',
+      cta: 'Choose Pro',
       featured: true
     },
     {
-      name: 'Pro',
-      price: billingCycle === 'monthly' ? '₹33,500' : '₹26,800',
-      usd: billingCycle === 'monthly' ? '$400' : '$320',
-      tagline: 'For serious operations',
+      name: 'Premium',
+      price: billingCycle === 'monthly' ? '₹4,900' : '₹3,920',
+      usd: billingCycle === 'monthly' ? '$59' : '$47',
+      tagline: 'The ultimate agent workforce',
       features: [
         '10 AI Agents',
-        '15,000 message credits/month',
-        'Voice + telephony support',
-        'API access',
-        'White-label (your brand)',
-        'SSO login',
-        'Advanced exports',
-        'Dedicated success manager',
-        'SLA guarantee'
+        '10,000 message credits/month',
+        'Custom workflow builder',
+        'White-label options',
+        'Team collaboration (3 seats)',
+        'API & Webhook access',
+        'Priority support',
+        'Dedicated account manager'
       ],
-      cta: 'Go Pro',
+      cta: 'Go Premium',
       featured: false
     }
   ]

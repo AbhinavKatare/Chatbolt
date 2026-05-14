@@ -47,11 +47,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     async function checkAuth() {
       const s = await getSession()
-      if (!s) window.location.href = '/login'
-      else setSession(s)
+      if (!s) {
+        window.location.href = '/login'
+        return
+      }
+      
+      // Mandatory Pricing Check: Redirect if no active paid plan
+      const plan = s.tenant?.plan
+      if (!plan || plan === 'hobby' || plan === 'free') {
+        if (pathname !== '/onboarding') {
+          window.location.href = '/onboarding'
+          return
+        }
+      }
+      
+      setSession(s)
     }
     checkAuth()
-  }, [])
+  }, [pathname])
 
   if (!session) return null
 
@@ -74,7 +87,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
           
           <div className="px-6 py-4 flex items-center gap-2 text-[10px] font-bold text-[#888] uppercase tracking-widest border-b border-black/5">
-            <span className="truncate">Workspace <span className="bg-[#00DFB8]/10 text-[#00DFB8] px-1.5 py-0.5 rounded-full text-[9px] font-bold ml-1">Pro</span></span>
+            <span className="truncate">Workspace <span className="bg-[#00DFB8]/10 text-[#00DFB8] px-1.5 py-0.5 rounded-full text-[9px] font-bold ml-1">{session.tenant.plan || 'No Plan'}</span></span>
             <ChevronRight size={14} className="ml-auto" />
           </div>
 

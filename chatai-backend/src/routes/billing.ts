@@ -15,9 +15,8 @@ const razorpay = new Razorpay({
 })
 
 const PRICE_IDS: Record<string, string> = {
-  hobby: process.env.STRIPE_PRICE_HOBBY || '',
-  standard: process.env.STRIPE_PRICE_STANDARD || '',
   pro: process.env.STRIPE_PRICE_PRO || '',
+  premium: process.env.STRIPE_PRICE_PREMIUM || '',
 }
 
 const PRICE_TO_PLAN: Record<string, string> = Object.fromEntries(
@@ -28,9 +27,8 @@ const PRICE_TO_PLAN: Record<string, string> = Object.fromEntries(
 router.get('/plans', (_, res) => {
   res.json({
     plans: [
-      { id: 'hobby', name: 'Hobby', price_monthly: 32, price_annual: 26, inr_monthly: 2600, credits: 500, agents: 1 },
-      { id: 'standard', name: 'Standard', price_monthly: 120, price_annual: 96, inr_monthly: 9900, credits: 4000, agents: 3 },
-      { id: 'pro', name: 'Pro', price_monthly: 400, price_annual: 320, inr_monthly: 33000, credits: 15000, agents: 10 },
+      { id: 'pro', name: 'Pro', price_monthly: 25, inr_monthly: 2100, credits: 2500, agents: 3 },
+      { id: 'premium', name: 'Premium', price_monthly: 59, inr_monthly: 4900, credits: 10000, agents: 10 },
     ]
   })
 })
@@ -62,7 +60,6 @@ router.post('/checkout', authMiddleware, async (req: Request, res: Response) => 
       line_items: [{ price: PRICE_IDS[plan], quantity: 1 }],
       subscription_data: {
         metadata: { tenant_id: tenant.id, plan },
-        trial_period_days: 14,
       },
       success_url: `${process.env.FRONTEND_URL}/dashboard?checkout=success&plan=${plan}`,
       cancel_url: `${process.env.FRONTEND_URL}/pricing?checkout=cancelled`,
@@ -80,7 +77,7 @@ router.post('/razorpay/checkout', authMiddleware, async (req: Request, res: Resp
   try {
     const { plan } = req.body
     const tenant = req.tenant!
-    const plansInr: Record<string, number> = { hobby: 2600, standard: 9900, pro: 33000 }
+    const plansInr: Record<string, number> = { pro: 2100, premium: 4900 }
     
     if (!plansInr[plan]) return res.status(400).json({ error: 'Invalid plan' })
 
@@ -113,7 +110,7 @@ router.post('/razorpay/verify', authMiddleware, async (req: Request, res: Respon
       return res.status(400).json({ error: 'Invalid signature' })
     }
 
-    const credits = PLAN_CREDITS[plan] || 500
+    const credits = PLAN_CREDITS[plan] || 0
     await query(
       `UPDATE tenants SET plan = $1, credits_monthly = $2, credits_remaining = $2 WHERE id = $3`,
       [plan, credits, tenantId]
@@ -148,7 +145,7 @@ router.post('/portal', authMiddleware, async (req: Request, res: Response) => {
 router.get('/subscription', authMiddleware, async (req: Request, res: Response) => {
   const tenant = req.tenant!
   if (!tenant.stripe_customer_id || !tenant.stripe_subscription_id) {
-    return res.json({ subscription: null, plan: 'hobby' })
+    return res.json({ subscription: null, plan: tenant.plan || 'none' })
   }
 
   try {
@@ -229,8 +226,8 @@ router.post('/webhook', async (req: Request, res: Response) => {
         if (!tenantId) break
 
         const priceId = sub.items.data[0]?.price?.id
-        const plan = PRICE_TO_PLAN[priceId] || 'hobby'
-        const credits = PLAN_CREDITS[plan] || 500
+        const plan = PRICE_TO_PLAN[priceId] || 'none'
+        const credits = PLAN_CREDITS[plan] || 0
 
         await query(
           `UPDATE tenants SET plan = $1, credits_monthly = $2, stripe_subscription_id = $3 WHERE id = $4`,
@@ -251,7 +248,7 @@ router.post('/webhook', async (req: Request, res: Response) => {
 
         // Refill monthly credits on renewal
         if (invoice.billing_reason === 'subscription_cycle') {
-          const credits = PLAN_CREDITS[tenant.plan] || 500
+          const credits = PLAN_CREDITS[tenant.plan] || 0
           await query('UPDATE tenants SET credits_remaining = $1 WHERE id = $2', [credits, tenant.id])
           await refillCredits(tenant.id, credits, 'recharge', `Monthly renewal — ${tenant.plan} plan`)
           console.log(`✅ Credits refilled: tenant ${tenant.id} (${credits} credits)`)
@@ -265,10 +262,10 @@ router.post('/webhook', async (req: Request, res: Response) => {
         if (!tenantId) break
 
         await query(
-          `UPDATE tenants SET plan = 'hobby', credits_monthly = 500, stripe_subscription_id = NULL WHERE id = $1`,
+          `UPDATE tenants SET plan = 'none', credits_monthly = 0, stripe_subscription_id = NULL WHERE id = $1`,
           [tenantId]
         )
-        console.log(`⚠️ Subscription cancelled: tenant ${tenantId} downgraded to hobby`)
+        console.log(`⚠️ Subscription cancelled: tenant ${tenantId} downgraded to none`)
         break
       }
 

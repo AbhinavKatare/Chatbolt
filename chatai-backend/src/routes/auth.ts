@@ -36,7 +36,7 @@ router.post('/signup', async (req: Request, res: Response) => {
 
     const [tenant] = await query<Tenant>(
       `INSERT INTO tenants (name, email, supabase_user_id, plan, credits_remaining, credits_monthly)
-       VALUES ($1, $2, $3, 'hobby', 500, 500)
+       VALUES ($1, $2, $3, 'none', 0, 0)
        RETURNING id, name, email, plan, credits_remaining, credits_monthly, created_at`,
       [body.name, body.email, user.id]
     )

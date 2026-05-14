@@ -38,5 +38,5 @@ export async function getCreditsBalance(tenantId: string) {
 }
 
 export const PLAN_CREDITS: Record<string, number> = {
-  hobby: 500, standard: 4000, pro: 15000, enterprise: 100000
+  pro: 2500, premium: 10000, enterprise: 100000
 }
