@@ -10,8 +10,6 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     
     if (authHeader?.startsWith('Bearer ')) {
       token = authHeader.slice(7)
-    } else if (req.query.token) {
-      token = req.query.token as string
     }
 
     if (!token) {
