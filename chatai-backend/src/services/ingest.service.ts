@@ -109,7 +109,7 @@ async function embedBatch(texts: string[]): Promise<number[][]> {
     input: texts,
     encoding_format: 'float'
   })
-  return response.data.map(d => d.embedding)
+  return response.data.map((d: any) => d.embedding)
 }
 
 function chunkArray<T>(arr: T[], size: number): T[][] {

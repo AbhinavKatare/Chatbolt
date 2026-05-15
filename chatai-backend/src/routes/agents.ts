@@ -198,7 +198,7 @@ router.post('/:id/broadcast', authMiddleware, async (req: Request, res: Response
     // Trigger background broadcast
     const { sendOutreachBatch } = await import('../services/whatsapp.service')
     sendOutreachBatch(contacts, message_template)
-      .catch(err => console.error('[WhatsApp] Batch outreach failed:', err))
+      .catch((err: any) => console.error('[WhatsApp] Batch outreach failed:', err))
 
     res.json({ success: true, message: `Started broadcast to ${contacts.length} contacts` })
   } catch (err: any) {

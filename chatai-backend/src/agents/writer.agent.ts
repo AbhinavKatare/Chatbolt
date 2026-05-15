@@ -1,57 +1,78 @@
-import { AgentExecutor, AgentResult, AgentContext } from './types';
-import { llm } from '../services/llm-orchestrator.service';
+import { callLLM } from './base.agent'
+import { AgentOutput, WorkflowAgent } from '../types'
+import { runEmitter } from '../services/sse.service'
 
-export const executeWriter: AgentExecutor = async (context: AgentContext): Promise<AgentResult> => {
-  const start = Date.now();
+export async function runWriter(
+  agent: WorkflowAgent,
+  input: any,
+  runId: string
+): Promise<AgentOutput> {
+  const startTime = Date.now()
   
-  const inputSource = context.inputData.synthesis 
-    || context.inputData.summary
-    || context.inputData.agent_1_output?.summary
-    || context.inputData.agent_1_output?.synthesis 
-    || "No context provided. Write a welcome message for Chatbolt.";
-    
-  const format = context.inputData.format || 'email_newsletter';
-  const tone = context.inputData.tone || 'professional';
+  console.log(`[Agent: ${agent.name}] Starting writing...`)
+  runEmitter.emitEvent(runId, 'agent_start', { agentId: agent.id, name: agent.name })
 
   try {
-    console.log(`[Writer Agent] Drafting content using Llama 3.1 for format: ${format}`);
+    const previousOutputs = JSON.stringify(input.previous_outputs || {})
+    const userStyle = input.user_inputs?.style || 'professional'
     
-    // Using Llama 3.1 (WRITER) for superior prose and formatting
-    const aiResponse = await llm.chat({
-      model: 'WRITER',
-      messages: [
-        { 
-          role: 'system', 
-          content: `You are an expert Content Writer. Write a ${tone} ${format} based on the provided research context. Ensure high engagement and clear structure.` 
-        },
-        { role: 'user', content: `Context: ${inputSource}` }
-      ],
-      temperature: 0.8 // Higher temperature for creative writing
-    });
+    const model = agent.config?.model || ''
+    
+    const { content, confidence } = await callLLM(
+      model,
+      agent.system_prompt,
+      `Previous Research/Data: ${previousOutputs}\n\nStyle Preference: ${userStyle}\n\nTask: ${agent.description}`
+    )
 
-    const draft = aiResponse.content;
+    let subjectLine = ''
+    if (agent.output_type === 'email' || agent.description.toLowerCase().includes('email')) {
+      runEmitter.emitEvent(runId, 'agent_progress', { message: 'Generating subject line...' })
+      const { content: sub } = await callLLM(
+        model,
+        'Generate a catchy and relevant email subject line for the following content. Return ONLY the subject text.',
+        content
+      )
+      subjectLine = sub
+    }
 
-    return {
+    const output: AgentOutput = {
       success: true,
       data: {
-        draft,
-        word_count: draft?.split(/\s+/)?.length || 0,
-        format,
-        tone,
-        tokens_used: aiResponse.usage?.total_tokens
+        content,
+        subject_line: subjectLine,
+        word_count: content.split(' ').length
       },
-      metrics: {
-        duration_ms: Date.now() - start,
-        api_calls: 1,
+      summary: `Content generated successfully (${content.split(' ').length} words).`,
+      output_type: 'text',
+      confidence,
+      metadata: {
+        duration_ms: Date.now() - startTime,
+        tokens_used: 0,
+        tools_used: [],
+        retries: 0
       }
-    };
-  } catch (error: any) {
-    console.error(`[Writer Agent ERROR]`, error);
-    return {
+    }
+
+    runEmitter.emitEvent(runId, 'agent_done', { agentId: agent.id, summary: output.summary })
+    return output
+
+  } catch (err: any) {
+    console.error(`[Agent: ${agent.name}] Error:`, err.message)
+    const errorOutput: AgentOutput = {
       success: false,
       data: null,
-      error: error.message,
-      metrics: { duration_ms: Date.now() - start, api_calls: 0 }
-    };
+      summary: 'Writing failed',
+      output_type: 'text',
+      confidence: 0,
+      error: err.message,
+      metadata: {
+        duration_ms: Date.now() - startTime,
+        tokens_used: 0,
+        tools_used: [],
+        retries: 0
+      }
+    }
+    runEmitter.emitEvent(runId, 'agent_error', { agentId: agent.id, error: err.message })
+    return errorOutput
   }
-};
+}

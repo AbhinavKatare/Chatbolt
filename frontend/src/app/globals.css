@@ -1,12 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
 
 :root {
   --background: #FDFDFB;
-  --foreground: #FFFFFF;
-  --card: #FFFFFF;
-  --muted: #8A9A97;
+  --foreground: #1A1A1A;
   --accent: #00DFB8;
-  --border: rgba(173, 167, 151, 0.1);
+  --border: rgba(0, 0, 0, 0.03);
 }
 
 @tailwind base;
@@ -14,119 +12,62 @@
 @tailwind utilities;
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: 'Outfit', sans-serif;
+  background-color: #F9F9F9;
+  color: #1A1A1A;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.011em;
 }
 
-.display-title {
-  font-family: 'Playfair Display', serif;
-  font-weight: 700;
+@layer base {
+  h1, h2, h3, h4, h5, h6 {
+    letter-spacing: -0.025em;
+  }
 }
 
 @layer components {
-  .btn {
-    @apply inline-flex items-center justify-center px-6 py-3 rounded-sm font-bold uppercase tracking-[0.2em] text-[10px] transition-all duration-300;
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
   }
   
-  .btn-primary {
-    @apply bg-[#00DFB8] text-[#FDFDFB] hover:bg-white;
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
   }
   
-  .btn-secondary {
-    @apply border border-[#8A9A97]/30 text-[#555555] hover:border-white hover:text-[#1A1A1A];
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.1);
   }
 
-  .card {
-    @apply bg-[#FFFFFF] border border-[#8A9A97]/10 rounded-sm hover:border-[#00DFB8]/30 transition-all duration-300;
+  .glass-card {
+    @apply bg-white border border-black/[0.03] shadow-sm transition-all duration-300;
   }
 
-  .text-label {
-    @apply text-[10px] font-bold uppercase tracking-[0.3em] text-[#555555];
+  .text-xs-caps {
+    @apply text-[9px] font-black uppercase tracking-[0.3em] text-gray-400;
   }
 
-  .text-sm-muted {
-    @apply text-sm font-medium text-[#555555] leading-relaxed;
-  }
-
-  .stat-value {
-    @apply display-title text-4xl text-[#1A1A1A] tracking-tighter;
-  }
-
-  .stat-label {
-    @apply text-[10px] font-bold text-[#555555] uppercase tracking-[0.2em] mt-1;
+  .text-stat-value {
+    @apply text-xl font-bold tracking-tight text-[#1A1A1A];
   }
 }
 
-/* Custom Noise Overlay */
-.noise-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  content: "";
-  opacity: 0.02;
-  z-index: 9999;
-  pointer-events: none;
-  background: url("https://grainy-gradients.vercel.app/noise.svg");
+/* Base styles for the "Manus AI" look */
+.selection\:bg-\[#00DFB8\]\/30 ::selection {
+  background-color: rgba(0, 223, 184, 0.3);
 }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 4px;
-}
-::-webkit-scrollbar-track {
-  background: #FDFDFB;
-}
-::-webkit-scrollbar-thumb {
-  background: #1e1e1e;
-  border-radius: 10px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #00DFB8;
+/* Smooth transitions for all interactive elements */
+a, button, input, select, textarea {
+  @apply transition-all duration-200;
 }
 
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+/* Remove default focus rings and use custom ones */
+*:focus-visible {
+  @apply outline-none ring-2 ring-[#00DFB8]/20 ring-offset-0;
 }
-
-@keyframes shine {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.shine-gradient {
-  background: linear-gradient(
-    120deg,
-    rgba(255, 255, 255, 0) 30%,
-    rgba(255, 255, 255, 0.05) 50%,
-    rgba(255, 255, 255, 0) 70%
-  );
-  background-size: 200% 100%;
-  animation: shine 6s infinite linear;
-}
-
-.gloss-overlay {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.05) 0%,
-    rgba(255, 255, 255, 0) 100%
-  );
-}
-
-.glow-text {
-  text-shadow: 0 0 20px rgba(191, 186, 173, 0.3);
-}
-
-.glass-panel {
-  @apply bg-black/[0.02] border border-black/5 backdrop-blur-md;
-}
-

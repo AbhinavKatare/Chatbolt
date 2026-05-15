@@ -4,11 +4,12 @@ import { OpenAI } from 'openai';
  * NVIDIA NIM Models mapped to their specific roles in Chatbolt
  */
 export const NIM_MODELS = {
+  AUTOGEN: process.env.AUTOGEN_MODEL || 'nvidia/autogen-23-llama3-70b', // Provided by user or fallback
   REASONER: 'qwen/qwen2.5-72b-instruct', // Best for planning and logic
-  WRITER: 'meta/llama-3.1-70b-instruct',  // Best for prose and creative output
+  WRITER: 'meta/llama-3.1-8b-instruct',  // Best for prose and creative output
   EXTRACTOR: 'mistralai/mixtral-8x7b-instruct-v0.1', // Best for data extraction
   FAST: 'microsoft/phi-3-mini-128k-instruct', // Best for simple/cheap tasks
-  NEMOTRON: 'nvidia/nemotron-4-340b-instruct', // Best for strict instruction following
+  HEAVY_AGENT: 'meta/llama-3.1-8b-instruct',
 };
 
 export class LLMOrchestrator {
@@ -16,7 +17,7 @@ export class LLMOrchestrator {
 
   constructor() {
     this.client = new OpenAI({
-      apiKey: process.env.NVIDIA_NIM_API_KEY || 'placeholder',
+      apiKey: process.env.NVIDIA_API_KEY_2 || process.env.NVIDIA_API_KEY || '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',
       baseURL: 'https://integrate.api.nvidia.com/v1',
     });
   }
@@ -63,6 +64,26 @@ export class LLMOrchestrator {
       ],
       temperature: 0.1, // Low temperature for stability
     });
+  }
+
+  /**
+   * Heavy Agent Work (Streaming)
+   */
+  async heavyAgentWork(prompt: string, context: string = '') {
+    const messages = [
+      { role: 'user' as const, content: context ? `Context: ${context}\n\nRequest: ${prompt}` : prompt }
+    ];
+
+    const stream = await this.client.chat.completions.create({
+      model: NIM_MODELS.HEAVY_AGENT,
+      messages: messages,
+      temperature: 0.7,
+      top_p: 0.8,
+      max_tokens: 4096,
+      stream: true
+    });
+
+    return stream;
   }
 }
 

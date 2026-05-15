@@ -1,16 +1,19 @@
 import cron from 'node-cron'
 
 export function startKeepAlive() {
-  if (process.env.NODE_ENV !== 'production') return
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('Keep-alive: Not in production, skipping.')
+    return
+  }
   
-  // Pings your own server every 10 minutes to prevent Render free tier from sleeping
+  // Pings every 10 minutes to prevent Render from sleeping
   cron.schedule('*/10 * * * *', async () => {
     try {
-      const url = process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 4000}`
-      await fetch(`${url}/health`)
-      console.log('Keep-alive ping sent')
+      const url = process.env.RENDER_EXTERNAL_URL || 'http://localhost:3001'
+      const response = await fetch(`${url}/health`)
+      console.log(`Keep-alive ping sent to ${url}/health. Status: ${response.status}`)
     } catch (err) {
-      console.log('Keep-alive failed:', err)
+      console.log('Keep-alive ping failed:', err)
     }
   })
 }

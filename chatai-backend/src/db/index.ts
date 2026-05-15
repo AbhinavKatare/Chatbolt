@@ -3,11 +3,20 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
+const connStr = process.env.DATABASE_URL || ''
+console.log(`📡 Connecting to DB: ${connStr.replace(/:[^:@/]+@/, ':****@')}`)
+
 export const db = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: connStr,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
+})
+
+db.on('connect', (client) => {
+  client.query('SELECT current_database()').then(res => {
+    console.log(`✅ Database connected: ${res.rows[0].current_database}`)
+  })
 })
 
 db.on('error', (err) => {

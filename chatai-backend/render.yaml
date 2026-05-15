@@ -17,7 +17,7 @@ services:
         generateValue: true
       - key: OPENAI_API_KEY
         sync: false
-      - key: OPENROUTER_API_KEY
+      - key: BOLTAI_API_KEY
         sync: false
       - key: FRONTEND_URL
         sync: false

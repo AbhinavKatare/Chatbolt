@@ -22,14 +22,16 @@ import webhookRoutes from './routes/webhooks'
 import calendarRoutes from './routes/calendar'
 import workflowRoutes from './routes/workflows'
 import reportsRoutes from './routes/reports'
-import { initJobs } from './jobs/daily-report'
+import { initDailyReports } from './jobs/daily-report'
+import { initScheduler } from './jobs/scheduler'
 import { startKeepAlive } from './jobs/keep-alive'
 
 const app = express()
 const PORT = process.env.PORT || 4000
 
 // Start cron jobs
-initJobs()
+initDailyReports()
+initScheduler()
 startKeepAlive()
 
 // ── Stripe webhook needs raw body ─────────────────────────────────
@@ -102,6 +104,9 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 
+// ── Initialize Jobs ───────────────────────────────────────────────
+initDailyReports();
+
 app.listen(PORT, () => {
   console.log(`
 🚀 Chatbolt Backend running on port ${PORT}
@@ -112,3 +117,16 @@ app.listen(PORT, () => {
 })
 
 export default app
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 

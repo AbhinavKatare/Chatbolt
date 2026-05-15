@@ -184,9 +184,9 @@ CREATE TABLE IF NOT EXISTS workflows (
   tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   description TEXT,
-  prompt TEXT,
+  original_prompt TEXT,
   type TEXT,
-  status TEXT DEFAULT 'building',
+  status TEXT DEFAULT 'active',
   complexity TEXT,
   agent_count INTEGER DEFAULT 0,
   last_run_at TIMESTAMPTZ,
@@ -211,15 +211,29 @@ CREATE TABLE IF NOT EXISTS workflow_agents (
   role TEXT NOT NULL,
   description TEXT,
   system_prompt TEXT,
-  model TEXT DEFAULT 'qwen/qwen3-235b-a22b:free',
-  inputs_schema JSONB DEFAULT '{}',
-  outputs_schema JSONB DEFAULT '{}',
-  apis_connected JSONB DEFAULT '[]',
+  config JSONB DEFAULT '{"model": "qwen/qwen3-235b-a22b:free", "temperature": 0.3, "max_tokens": 2000, "tools_needed": []}',
+  inputs_from_user JSONB DEFAULT '[]',
+  inputs_from_previous JSONB DEFAULT '[]',
+  output_type TEXT DEFAULT 'text',
+  output_description TEXT,
   status TEXT DEFAULT 'idle',
   last_output JSONB,
   run_count INTEGER DEFAULT 0,
   avg_duration_ms INTEGER,
   created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Agent Memory (Persistent Facts)
+CREATE TABLE IF NOT EXISTS agent_memory (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  agent_id UUID NOT NULL REFERENCES workflow_agents(id) ON DELETE CASCADE,
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  key TEXT NOT NULL,
+  value TEXT NOT NULL,
+  category TEXT DEFAULT 'fact',
+  importance INTEGER DEFAULT 5,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  last_accessed TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Workflow Runs
@@ -293,8 +307,37 @@ CREATE TABLE IF NOT EXISTS daily_reports (
   errors_count INTEGER DEFAULT 0,
   highlights JSONB DEFAULT '[]',
   full_report_html TEXT,
+  summary TEXT,
+  metrics JSONB DEFAULT '{}',
   sent_at TIMESTAMPTZ
 );
+
+-- Agent Memory (Block 2.2)
+CREATE TABLE IF NOT EXISTS agent_memory (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  agent_id UUID REFERENCES workflow_agents(id) ON DELETE CASCADE,
+  tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  key TEXT NOT NULL,
+  value TEXT NOT NULL,
+  category TEXT DEFAULT 'fact',
+  importance INT DEFAULT 5,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  last_accessed TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Semantic Memory / Chunks (Block 2.3)
+CREATE TABLE IF NOT EXISTS agent_chunks (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  agent_id UUID REFERENCES workflow_agents(id) ON DELETE CASCADE,
+  document_id TEXT,
+  content TEXT NOT NULL,
+  metadata JSONB DEFAULT '{}',
+  embedding vector(1536), 
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS agent_memory_agent_id_idx ON agent_memory (agent_id);
+CREATE INDEX IF NOT EXISTS agent_chunks_agent_id_idx ON agent_chunks (agent_id);
 `
 
 async function migrate() {

@@ -1,32 +1,48 @@
 import OpenAI from 'openai'
 import { query, queryOne } from '../db'
 import { Agent, ChunkSource } from '../types'
+import { Response } from 'express'
+import { syncLeadToSheet } from './sheets.service'
 
-// NVIDIA NIM Client (Free Trial / Developer Tier)
-export const nvidia = new OpenAI({
-  apiKey: process.env.NVIDIA_API_KEY || '',
+// specialized NVIDIA Clients
+export const nvidiaMistral = new OpenAI({
+  apiKey: process.env.NVIDIA_API_KEY_MISTRAL || '',
   baseURL: 'https://integrate.api.nvidia.com/v1',
 })
 
-// OpenRouter Client for Qwen and other open models
-export const openrouter = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY || '',
+export const nvidiaLlama = new OpenAI({
+  apiKey: process.env.NVIDIA_API_KEY_LLAMA || '',
+  baseURL: 'https://integrate.api.nvidia.com/v1',
+})
+
+export const nvidia = nvidiaLlama
+
+export const nvidiaNemotron = new OpenAI({
+  apiKey: process.env.NVIDIA_API_KEY_NEMOTRON || '',
+  baseURL: 'https://integrate.api.nvidia.com/v1',
+})
+
+// BoltAI Gateway Client
+export const boltAIGateway = new OpenAI({
+  apiKey: process.env.BOLTAI_API_KEY || '',
   baseURL: 'https://openrouter.ai/api/v1',
 })
 // Business-grade models via NVIDIA NIM
 export const FREE_MODELS = [
-  'meta/llama-3.1-70b-instruct',
-  'nvidia/llama-3.1-nemotron-70b-instruct',
+  'meta/llama-3.1-8b-instruct',
+  'meta/llama-3.1-8b-instruct',
   'mistralai/mixtral-8x22b-instruct-v0.1'
 ]
 
 function getClient(model: string): OpenAI {
-  return nvidia
+  if (model.includes('mistral')) return nvidiaMistral
+  if (model.includes('nemotron')) return nvidiaNemotron
+  return nvidiaLlama
 }
 
 export async function embedText(text: string): Promise<number[]> {
-  // Use NVIDIA's embedding model for consistent free tier usage
-  const res = await nvidia.embeddings.create({ 
+  // Use NVIDIA's embedding model (using Llama key as it is a general NIM key)
+  const res = await nvidiaLlama.embeddings.create({ 
     model: 'nvidia/nv-embedqa-e5-v5', 
     input: text,
     encoding_format: 'float'
@@ -63,7 +79,7 @@ export async function streamChat(options: {
   if (!agent) throw new Error('Agent not found')
 
   const config = agent.config as any
-  const model: string = config?.model || 'qwen/qwen3-235b-a22b:free'
+  const model: string = config?.model || 'meta/llama-3.1-8b-instruct'
 
   const embedding = await embedText(userMessage)
   const chunks = await searchChunks(agentId, tenantId, embedding, 5)
@@ -132,8 +148,8 @@ async function extractAndSaveLead(agentId: string, tenantId: string, conversatio
   Example: {"name": "John", "email": "john@example.com", "score": 85}`
 
   try {
-    const response = await openrouter.chat.completions.create({
-      model: 'qwen/qwen3-235b-a22b:free',
+    const response = await boltAIGateway.chat.completions.create({
+      model: 'meta/llama-3.1-8b-instruct',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0,
     })
@@ -162,8 +178,7 @@ async function extractAndSaveLead(agentId: string, tenantId: string, conversatio
 
       // Sync to Google Sheets if configured
       if (process.env.LEADS_SHEET_ID && newLead?.id) {
-        const { syncLeadToSheet } = await import('./sheets.service')
-        syncLeadToSheet(newLead.id).catch(err => console.error('[Sheets] Sync failed:', err))
+        syncLeadToSheet(newLead.id).catch((err: any) => console.error('[Sheets] Sync failed:', err))
       }
     }
   } catch (err) {
@@ -175,7 +190,7 @@ export async function getAnswer(agentId: string, tenantId: string, userMessage: 
   const agent = await queryOne<Agent>('SELECT * FROM agents WHERE id = $1 AND tenant_id = $2', [agentId, tenantId])
   if (!agent) throw new Error('Agent not found')
   const config = agent.config as any
-  const model: string = config?.model || 'qwen/qwen3-235b-a22b:free'
+  const model: string = config?.model || 'meta/llama-3.1-8b-instruct'
   const embedding = await embedText(userMessage)
   const chunks = await searchChunks(agentId, tenantId, embedding, 5)
   const avgConfidence = chunks.length > 0 ? chunks.reduce((s, c) => s + c.similarity, 0) / chunks.length : 0

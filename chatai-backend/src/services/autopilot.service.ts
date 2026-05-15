@@ -107,7 +107,7 @@ export async function generateAutopilotAgents(
           low_confidence_threshold: 0.35,
         }),
         JSON.stringify({
-          model: 'nvidia/llama-3.1-nemotron-70b-instruct',
+          model: 'meta/llama-3.1-8b-instruct',
           temperature: 0.3,
           max_tokens: 800,
         }),

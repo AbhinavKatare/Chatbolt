@@ -38,3 +38,8 @@ frontend/out/
 .idea/
 *.swp
 *.swo
+
+# Temporary files
+scratch/
+chatai-backend/scratch/
+chatai-backend/scripts/

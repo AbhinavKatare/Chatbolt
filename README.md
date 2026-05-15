@@ -33,7 +33,7 @@ graph TD
 - **Frontend**: Next.js 14 (App Router), Tailwind CSS, Lucide Icons.
 - **Backend**: Node.js, Express, TypeScript, tsx.
 - **Database**: Supabase (PostgreSQL + Auth).
-- **AI Orchestration**: NVIDIA NIM, OpenRouter.
+- **AI Orchestration**: NVIDIA NIM, BoltAI Gateway.
 - **Communication**: Resend (Transactional Email).
 
 ## 🚦 Getting Started
