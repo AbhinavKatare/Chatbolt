@@ -1,187 +1,468 @@
 'use client'
-import { 
-  Globe, 
-  Code2, 
-  MessageCircle, 
-  Copy, 
-  Check, 
-  ChevronRight, 
-  ShieldCheck,
-  Zap,
-  Sparkles,
-  Phone,
-  Rocket,
-  Search,
-  ExternalLink,
-  Cpu,
-  Activity,
-  Server
+import { useState, useEffect, useRef } from 'react'
+import {
+  Key, Code, Zap, Plus, Trash2, Copy, Check, Eye, EyeOff,
+  Globe, Shield, ArrowRight, ExternalLink, Loader2,
+  Bot, Terminal, Webhook, RefreshCw, X
 } from 'lucide-react'
-import { useState } from 'react'
+import { api } from '@/lib/api'
+import { useToast } from '@/components/ui/Toast'
 
-export default function DeployPage() {
+type Tab = 'API Access' | 'Embed Widget' | 'Zapier/Make'
+type ApiKey = { id: string; name: string; key_prefix: string; last_used_at: string | null; created_at: string }
+type Agent = { id: string; name: string; description?: string }
+
+function CodeBlock({ code, language = 'bash' }: { code: string; language?: string }) {
   const [copied, setCopied] = useState(false)
-  const scriptTag = `<script src="https://cdn.chatbolt.ai/widget.js" data-id="agent_123"></script>`
-
   const copy = () => {
-    navigator.clipboard.writeText(scriptTag)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+  return (
+    <div className="relative bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800">
+        <span className="text-xs text-zinc-500 font-mono">{language}</span>
+        <button
+          onClick={copy}
+          className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-[#00E599] transition-colors"
+        >
+          {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
+      </div>
+      <pre className="p-4 text-xs text-zinc-300 font-mono overflow-x-auto whitespace-pre-wrap">{code}</pre>
+    </div>
+  )
+}
+
+// ── API Access Tab ─────────────────────────────────────────────────────────────
+
+function ApiAccessTab({ agents }: { agents: Agent[] }) {
+  const [keys, setKeys] = useState<ApiKey[]>([])
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
+  const [newKeyName, setNewKeyName] = useState('')
+  const [newKeyAgentId, setNewKeyAgentId] = useState('')
+  const [showNewKey, setShowNewKey] = useState<string | null>(null)
+  const { toast } = useToast()
+
+  useEffect(() => {
+    api.apiKeys.list().then(res => setKeys(res.keys || [])).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+
+  const createKey = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newKeyName.trim()) return
+    setCreating(true)
+    try {
+      const res = await api.apiKeys.create(newKeyName.trim(), newKeyAgentId || undefined)
+      if (res.full_key) setShowNewKey(res.full_key)
+      setKeys(prev => [res.key || res, ...prev])
+      setNewKeyName('')
+      setNewKeyAgentId('')
+      toast({ title: 'API key created', type: 'success' })
+    } catch (err: any) {
+      toast({ title: 'Failed to create key', message: err.message, type: 'error' })
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const deleteKey = async (id: string) => {
+    if (!confirm('Delete this API key? Any apps using it will stop working.')) return
+    try {
+      await api.apiKeys.delete(id)
+      setKeys(prev => prev.filter(k => k.id !== id))
+      toast({ title: 'Key deleted', type: 'success' })
+    } catch (err: any) {
+      toast({ title: 'Failed to delete key', message: err.message, type: 'error' })
+    }
+  }
+
+  const exampleCode = `# Submit a task
+curl -X POST https://your-chatbolt-domain.com/api/v1/tasks \\
+  -H "X-API-Key: YOUR_KEY_HERE" \\
+  -H "Content-Type: application/json" \\
+  -d '{"prompt": "Summarize my inbox and draft replies"}'
+
+# Check task status
+curl https://your-chatbolt-domain.com/api/v1/tasks/TASK_ID \\
+  -H "X-API-Key: YOUR_KEY_HERE"`
+
+  return (
+    <div className="space-y-6">
+      {/* New key revealed */}
+      {showNewKey && (
+        <div className="bg-[#00E599]/10 border border-[#00E599]/30 rounded-xl p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-[#00E599] mb-1">🔑 Your new API key — copy it now</p>
+              <p className="text-xs text-zinc-500 mb-3">This key won&apos;t be shown again.</p>
+              <code className="text-sm text-white font-mono bg-zinc-900 px-3 py-2 rounded-lg block break-all">{showNewKey}</code>
+            </div>
+            <button onClick={() => setShowNewKey(null)} className="text-zinc-500 hover:text-white transition-colors shrink-0">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Create new key */}
+      <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
+          <Plus className="w-4 h-4 text-[#00E599]" />
+          Create API Key
+        </h3>
+        <form onSubmit={createKey} className="flex flex-wrap gap-2">
+          <input
+            value={newKeyName}
+            onChange={e => setNewKeyName(e.target.value)}
+            placeholder="Key name (e.g. Production App)"
+            className="flex-1 min-w-[200px] bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-[#00E599]/50"
+            required
+          />
+          <select
+            value={newKeyAgentId}
+            onChange={e => setNewKeyAgentId(e.target.value)}
+            className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-[#00E599]/50"
+          >
+            <option value="">All agents</option>
+            {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+          <button
+            type="submit"
+            disabled={creating || !newKeyName.trim()}
+            className="px-4 py-2 bg-[#00E599] text-black text-sm font-semibold rounded-lg hover:bg-[#00E599]/90 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+          >
+            {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
+            Generate
+          </button>
+        </form>
+      </div>
+
+      {/* Keys list */}
+      <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-zinc-800">
+          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+            <Key className="w-4 h-4 text-zinc-400" />
+            Active Keys ({keys.length})
+          </h3>
+        </div>
+        {loading ? (
+          <div className="p-5 space-y-3">
+            {[...Array(2)].map((_, i) => <div key={i} className="h-14 bg-zinc-800 rounded-lg animate-pulse" />)}
+          </div>
+        ) : keys.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-zinc-600 gap-2">
+            <Key className="w-8 h-8" />
+            <p className="text-sm">No API keys yet</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-zinc-800/50">
+            {keys.map(k => (
+              <div key={k.id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-zinc-800/20 transition-colors">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white">{k.name}</p>
+                  <p className="text-xs text-zinc-500 font-mono">{k.key_prefix}••••••••</p>
+                </div>
+                <p className="text-xs text-zinc-600">
+                  {k.last_used_at ? `Last used ${new Date(k.last_used_at).toLocaleDateString()}` : 'Never used'}
+                </p>
+                <button
+                  onClick={() => deleteKey(k.id)}
+                  className="p-1.5 text-zinc-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Code example */}
+      <div>
+        <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+          <Terminal className="w-4 h-4 text-[#00E599]" />
+          How to use
+        </h3>
+        <CodeBlock code={exampleCode} language="bash" />
+      </div>
+    </div>
+  )
+}
+
+// ── Embed Widget Tab ───────────────────────────────────────────────────────────
+
+function EmbedWidgetTab({ agents }: { agents: Agent[] }) {
+  const [selectedAgent, setSelectedAgent] = useState(agents[0]?.id || '')
+  const [copied, setCopied] = useState(false)
+
+  const embedCode = `<script 
+  src="https://your-chatbolt-domain.com/widget.js"
+  data-agent="${selectedAgent || 'YOUR_AGENT_ID'}"
+  data-theme="dark"
+  data-position="bottom-right"
+  data-welcome="Hi! How can I help you today?"
+></script>`
+
+  const copyEmbed = () => {
+    navigator.clipboard.writeText(embedCode).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#F9F9F9] font-sans selection:bg-[#00DFB8]/30">
-      {/* TOOLBAR */}
-      <div className="h-14 border-b border-black/[0.03] bg-white flex items-center justify-between px-8 shrink-0">
-        <div className="flex items-center gap-6">
-           <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-              <Server size={14} className="text-[#00DFB8]" /> Environment Manager
-           </div>
-           <div className="h-4 w-px bg-black/[0.05]" />
-           <div className="flex items-center gap-4">
-              <button className="text-[10px] font-bold text-black uppercase tracking-widest border-b border-black">Production</button>
-              <button className="text-[10px] font-bold text-gray-400 hover:text-black transition-colors uppercase tracking-widest">Staging</button>
-              <button className="text-[10px] font-bold text-gray-400 hover:text-black transition-colors uppercase tracking-widest">Edge Hooks</button>
-           </div>
-        </div>
-        <div className="flex items-center gap-3 text-[10px] font-black text-gray-300 uppercase tracking-widest">
-           <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-[#00DFB8]" /> All Systems Operational</div>
-        </div>
+    <div className="space-y-6">
+      {/* Agent selector */}
+      <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
+          <Bot className="w-4 h-4 text-[#00E599]" />
+          Select an Agent to Embed
+        </h3>
+        <select
+          value={selectedAgent}
+          onChange={e => setSelectedAgent(e.target.value)}
+          className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#00E599]/50"
+        >
+          <option value="">Choose an agent...</option>
+          {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+        </select>
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        <div className="max-w-6xl mx-auto px-8 py-10 space-y-10">
-          
-          <div className="flex justify-between items-end">
-             <div className="space-y-3">
-                <div className="inline-flex items-center gap-2 px-2 py-0.5 bg-[#00DFB8]/10 text-[#00DFB8] rounded-full text-[9px] font-bold uppercase tracking-widest">
-                   <Rocket size={10} /> Active Deployment
-                </div>
-                <h1 className="text-3xl font-semibold text-[#1A1A1A] tracking-tight">Channel Activation</h1>
-                <p className="text-[10px] font-medium text-gray-400 uppercase tracking-widest max-w-xl leading-relaxed">
-                   Provision your AI workforce across web, mobile, and social endpoints via secure orchestration tunnels.
-                </p>
-             </div>
+      {/* Preview */}
+      <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
+          <Globe className="w-4 h-4 text-zinc-400" />
+          Widget Preview
+        </h3>
+        <div className="relative h-56 bg-zinc-950 rounded-xl border border-zinc-800 overflow-hidden">
+          {/* Simulated page content */}
+          <div className="absolute inset-0 p-4 opacity-30">
+            <div className="h-3 bg-zinc-700 rounded w-3/4 mb-2" />
+            <div className="h-3 bg-zinc-700 rounded w-1/2 mb-2" />
+            <div className="h-3 bg-zinc-700 rounded w-2/3" />
           </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-            {/* LEFT COLUMN: PRIMARY CHANNELS */}
-            <div className="lg:col-span-7 space-y-8">
-              <section className="bg-white border border-black/[0.03] p-8 rounded-2xl shadow-sm space-y-6 group">
-                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                       <div className="w-10 h-10 bg-gray-50 border border-black/[0.03] rounded-xl flex items-center justify-center text-[#00DFB8]">
-                          <Globe size={20} />
-                       </div>
-                       <div>
-                          <h3 className="text-xs font-bold text-[#1A1A1A]">Website Runtime</h3>
-                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Floating CDN Interface</p>
-                       </div>
-                    </div>
-                    <div className="px-2 py-0.5 bg-green-50 text-green-600 rounded text-[8px] font-black uppercase tracking-widest">Live</div>
-                 </div>
-
-                 <p className="text-[11px] text-gray-400 leading-relaxed font-medium">
-                    Integrate the production runtime script into your application's root manifest. This provides a direct tunnel to your agent workforce.
-                 </p>
-
-                 <div className="relative group/code">
-                    <div className="bg-[#1A1A1A] p-6 rounded-xl font-mono text-[11px] text-[#00DFB8] break-all border border-black shadow-inner leading-relaxed pr-12">
-                       {scriptTag}
-                    </div>
-                    <button 
-                      onClick={copy}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/5 hover:bg-white border border-white/5 hover:border-black rounded-lg flex items-center justify-center transition-all text-white/40 hover:text-black shadow-sm"
-                    >
-                       {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-                    </button>
-                 </div>
-                 
-                 <div className="flex items-center gap-4 pt-2">
-                    <div className="flex items-center gap-1.5 text-[8px] font-black text-gray-300 uppercase tracking-[0.2em]">
-                       <ShieldCheck size={10} className="text-[#00DFB8]" /> SSL Verified
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[8px] font-black text-gray-300 uppercase tracking-[0.2em]">
-                       <Zap size={10} className="text-[#00DFB8]" fill="currentColor" /> CDN Optimized
-                    </div>
-                 </div>
-              </section>
-
-              <section className="bg-white border border-black/[0.03] p-8 rounded-2xl shadow-sm space-y-6 group opacity-75 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
-                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                       <div className="w-10 h-10 bg-gray-50 border border-black/[0.03] rounded-xl flex items-center justify-center text-[#25D366]">
-                          <MessageCircle size={20} />
-                       </div>
-                       <div>
-                          <h3 className="text-xs font-bold text-[#1A1A1A]">WhatsApp Bridge</h3>
-                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Direct Social Orchestration</p>
-                       </div>
-                    </div>
-                 </div>
-
-                 <p className="text-[11px] text-gray-400 leading-relaxed font-medium">
-                    Bridge your autonomous units with WhatsApp Business API. Handle conversations via the centralized workforce logic.
-                 </p>
-
-                 <button className="w-full py-4 border-2 border-dashed border-black/[0.03] text-gray-300 text-[9px] font-black uppercase tracking-[0.3em] rounded-xl hover:border-[#25D366] hover:text-[#25D366] transition-all bg-black/[0.01]">
-                    Establish Social Bridge
-                 </button>
-              </section>
+          {/* Chat widget bubble */}
+          <div className="absolute bottom-4 right-4 flex flex-col items-end gap-2">
+            <div className="bg-zinc-800 border border-zinc-700 rounded-xl p-3 text-xs text-zinc-300 shadow-lg max-w-[180px]">
+              Hi! How can I help you today? 👋
             </div>
-
-            {/* RIGHT COLUMN: INFRASTRUCTURE & API */}
-            <div className="lg:col-span-5 space-y-8">
-              <section className="bg-white border border-black/[0.03] p-8 rounded-2xl shadow-sm space-y-6 group">
-                 <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-gray-50 border border-black/[0.03] rounded-xl flex items-center justify-center text-[#1A1A1A]">
-                       <Code2 size={20} />
-                    </div>
-                    <div>
-                       <h3 className="text-xs font-bold text-[#1A1A1A]">Headless SDK</h3>
-                       <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Core Infrastructure API</p>
-                    </div>
-                 </div>
-
-                 <p className="text-[11px] text-gray-400 leading-relaxed font-medium">
-                    Integrate agent logic directly into your internal tooling or mobile applications via our secure REST endpoints.
-                 </p>
-
-                 <button className="flex items-center justify-center gap-2 w-full py-4 bg-[#1A1A1A] text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg hover:bg-black transition-all active:scale-[0.98]">
-                    Generate API Credentials <ChevronRight size={14} />
-                 </button>
-              </section>
-
-              <div className="bg-[#1A1A1A] p-8 rounded-2xl shadow-xl space-y-6 border border-black relative overflow-hidden">
-                 <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-                    <Sparkles size={80} className="text-white" />
-                 </div>
-                 <div className="flex items-center gap-2 text-[#00DFB8]">
-                    <Activity size={16} />
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em]">Enterprise Guard</h3>
-                 </div>
-                 <p className="text-[11px] text-gray-400 leading-relaxed font-medium">
-                    Deploying across distributed corporate infrastructure? Our implementation architects provide high-fidelity integration support.
-                 </p>
-                 <button className="flex items-center gap-2 text-[9px] font-black text-[#00DFB8] uppercase tracking-[0.2em] border-b border-[#00DFB8]/30 pb-0.5 hover:border-[#00DFB8] transition-all">
-                    Request Implementation Audit <ExternalLink size={12} />
-                 </button>
-              </div>
-
-              <div className="bg-white border border-black/[0.03] p-6 rounded-2xl shadow-sm flex items-center gap-5 grayscale opacity-60">
-                 <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0 border border-blue-100">
-                    <Phone size={18} />
-                 </div>
-                 <div className="space-y-0.5">
-                    <h4 className="text-[9px] font-black text-[#1A1A1A] uppercase tracking-widest">Voice Protocol Beta</h4>
-                    <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">
-                       Coming to <span className="text-black">Twilio / SIP</span>
-                    </p>
-                 </div>
-              </div>
+            <div className="w-12 h-12 rounded-full bg-[#00E599] flex items-center justify-center shadow-lg cursor-pointer">
+              <Bot className="w-6 h-6 text-black" />
             </div>
           </div>
         </div>
+        <p className="text-xs text-zinc-600 mt-2 text-center">Live preview — widget appears in the bottom-right corner</p>
+      </div>
+
+      {/* Embed code */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+            <Code className="w-4 h-4 text-[#00E599]" />
+            Embed Code
+          </h3>
+          <button
+            onClick={copyEmbed}
+            className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-[#00E599] transition-colors px-3 py-1.5 rounded-lg hover:bg-[#00E599]/10"
+          >
+            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? 'Copied!' : 'Copy Code'}
+          </button>
+        </div>
+        <CodeBlock code={embedCode} language="html" />
+        <p className="text-xs text-zinc-600 mt-3">
+          Paste this snippet before the <code className="text-zinc-500">&lt;/body&gt;</code> tag on any page.
+          To customize colors or behavior, go to the agent settings.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ── Zapier/Make Tab ────────────────────────────────────────────────────────────
+
+function ZapierTab() {
+  const [webhookToken, setWebhookToken] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const { toast } = useToast()
+
+  const webhookUrl = webhookToken
+    ? `https://your-chatbolt-domain.com/webhooks-receiver/receive/${webhookToken}`
+    : ''
+
+  const generateToken = async () => {
+    setGenerating(true)
+    try {
+      // Generate a random webhook token
+      const token = Array.from(crypto.getRandomValues(new Uint8Array(20)))
+        .map(b => b.toString(16).padStart(2, '0')).join('')
+      setWebhookToken(token)
+      toast({ title: 'Webhook URL generated', type: 'success' })
+    } catch {
+      toast({ title: 'Failed to generate token', type: 'error' })
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const copyWebhook = () => {
+    navigator.clipboard.writeText(webhookUrl).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  const steps = [
+    { step: '1', title: 'Get your API key', desc: 'Copy your API key from the API Access tab above', icon: Key },
+    { step: '2', title: 'Open Zapier or Make.com', desc: 'Search for "Webhooks by Zapier" or "HTTP" in Make', icon: ExternalLink },
+    { step: '3', title: 'Paste your webhook URL', desc: 'Copy the webhook URL below and paste it as the trigger', icon: Webhook },
+    { step: '4', title: 'Set up your action', desc: 'Choose: Task Completed, New Memory Saved, or Agent Response', icon: Zap },
+  ]
+
+  return (
+    <div className="space-y-6">
+      {/* Hero card */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-[#00E599]/10 to-transparent border border-[#00E599]/20 rounded-2xl p-6">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-[#00E599]/5 rounded-full -mr-10 -mt-10" />
+        <Zap className="w-8 h-8 text-[#00E599] mb-3" />
+        <h3 className="text-base font-bold text-white mb-1">Connect to 5,000+ apps</h3>
+        <p className="text-sm text-zinc-400">
+          Use Zapier, Make.com, or any webhook-compatible tool to trigger Chatbolt tasks, 
+          receive task results, and automate cross-app workflows.
+        </p>
+      </div>
+
+      {/* Steps */}
+      <div className="grid md:grid-cols-2 gap-3">
+        {steps.map(({ step, title, desc, icon: Icon }) => (
+          <div key={step} className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 flex gap-3">
+            <div className="w-7 h-7 rounded-lg bg-[#00E599]/15 text-[#00E599] flex items-center justify-center text-xs font-bold shrink-0">
+              {step}
+            </div>
+            <div>
+              <p className="text-sm font-medium text-white mb-0.5">{title}</p>
+              <p className="text-xs text-zinc-500">{desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Webhook generator */}
+      <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
+          <Webhook className="w-4 h-4 text-[#00E599]" />
+          Your Webhook URL
+        </h3>
+        {webhookToken ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-xs text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 px-3 py-2 rounded-lg break-all">
+                {webhookUrl}
+              </code>
+              <button
+                onClick={copyWebhook}
+                className="p-2 text-zinc-400 hover:text-[#00E599] hover:bg-[#00E599]/10 rounded-lg transition-colors"
+              >
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              </button>
+            </div>
+            <button
+              onClick={generateToken}
+              className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Generate new URL
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={generateToken}
+            disabled={generating}
+            className="flex items-center gap-2 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+          >
+            {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Webhook className="w-4 h-4" />}
+            Generate Webhook URL
+          </button>
+        )}
+      </div>
+
+      {/* API example for Zapier */}
+      <div>
+        <h3 className="text-sm font-semibold text-white mb-3">Example Zapier Action (HTTP POST)</h3>
+        <CodeBlock
+          code={`URL: https://your-chatbolt-domain.com/api/v1/tasks
+Method: POST
+Headers:
+  X-API-Key: YOUR_API_KEY
+  Content-Type: application/json
+
+Body:
+{
+  "prompt": "Summarize the lead data from {{zapier_field}}"
+}`}
+          language="http"
+        />
+      </div>
+    </div>
+  )
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
+
+export default function DeployPage() {
+  const [tab, setTab] = useState<Tab>('API Access')
+  const [agents, setAgents] = useState<Agent[]>([])
+
+  useEffect(() => {
+    api.agents.list().then(res => setAgents(res.agents || [])).catch(() => {})
+  }, [])
+
+  const tabs: Tab[] = ['API Access', 'Embed Widget', 'Zapier/Make']
+  const tabIcons = { 'API Access': Key, 'Embed Widget': Globe, 'Zapier/Make': Zap }
+
+  return (
+    <div className="min-h-screen bg-[#050507] text-white">
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-xl font-bold text-white flex items-center gap-2">
+            <Globe className="w-5 h-5 text-[#00E599]" />
+            Deploy & Integrate
+          </h1>
+          <p className="text-sm text-zinc-500 mt-0.5">
+            Connect Chatbolt to external apps, embed it on your site, or access via API
+          </p>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 bg-zinc-900/60 border border-zinc-800 rounded-xl p-1 w-fit">
+          {tabs.map(t => {
+            const Icon = tabIcons[t]
+            return (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                  tab === t ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {t}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Tab content */}
+        {tab === 'API Access' && <ApiAccessTab agents={agents} />}
+        {tab === 'Embed Widget' && <EmbedWidgetTab agents={agents} />}
+        {tab === 'Zapier/Make' && <ZapierTab />}
       </div>
     </div>
   )

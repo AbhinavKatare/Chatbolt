@@ -4,12 +4,12 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        background: '#0A0A0A',
-        surface: '#111111',
-        border: 'rgba(255,255,255,0.07)',
-        accent: '#B8FF00',
+        background: '#050507',
+        surface: '#0D0D11',
+        border: 'rgba(255,255,255,0.06)',
+        accent: '#00E599',
         primary: '#FFFFFF',
-        secondary: '#888888',
+        secondary: '#9A9A9E',
       },
       fontFamily: {
         display: ['var(--font-syne)', 'sans-serif'],
@@ -21,6 +21,6 @@ module.exports = {
       },
     }
   },
-  plugins: []
+  plugins: [require('tailwindcss-animate')]
 }
 

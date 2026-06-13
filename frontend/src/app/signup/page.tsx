@@ -36,6 +36,19 @@ export default function SignupPage() {
       const { tenant } = await api.auth.signup(form)
       saveSession(data.session.access_token, tenant)
       
+      // Apply referral code if present
+      if (typeof window !== 'undefined') {
+        const refCode = localStorage.getItem('referral_code')
+        if (refCode) {
+          try {
+            await api.referrals.apply(refCode)
+            localStorage.removeItem('referral_code')
+          } catch (refErr) {
+            console.error('Failed to apply referral:', refErr)
+          }
+        }
+      }
+
       window.location.href = '/dashboard'
     } catch (err: any) {
       setError(err.message)

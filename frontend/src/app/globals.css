@@ -1,10 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
 
 :root {
-  --background: #FDFDFB;
-  --foreground: #1A1A1A;
-  --accent: #00DFB8;
-  --border: rgba(0, 0, 0, 0.03);
+  --background: #050507;
+  --foreground: #F4F4F6;
+  --accent: #534AB7;
+  --border: rgba(255, 255, 255, 0.05);
 }
 
 @tailwind base;
@@ -12,8 +12,10 @@
 @tailwind utilities;
 
 body {
-  background-color: #F9F9F9;
-  color: #1A1A1A;
+  background-color: #050507;
+  color: #F4F4F6;
+  font-size: 14px;
+  line-height: 1.5;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   letter-spacing: -0.011em;
@@ -27,8 +29,8 @@ body {
 
 @layer components {
   .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
+    width: 6px;
+    height: 6px;
   }
   
   .custom-scrollbar::-webkit-scrollbar-track {
@@ -36,30 +38,30 @@ body {
   }
   
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.05);
+    background: rgba(255, 255, 255, 0.08);
     border-radius: 10px;
   }
   
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.1);
+    background: rgba(255, 255, 255, 0.15);
   }
 
   .glass-card {
-    @apply bg-white border border-black/[0.03] shadow-sm transition-all duration-300;
+    @apply bg-[#0D0D11]/90 border border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md transition-all duration-300;
   }
 
   .text-xs-caps {
-    @apply text-[9px] font-black uppercase tracking-[0.3em] text-gray-400;
+    @apply text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500;
   }
 
   .text-stat-value {
-    @apply text-xl font-bold tracking-tight text-[#1A1A1A];
+    @apply text-xl font-bold tracking-tight text-white;
   }
 }
 
-/* Base styles for the "Manus AI" look */
-.selection\:bg-\[#00DFB8\]\/30 ::selection {
-  background-color: rgba(0, 223, 184, 0.3);
+/* Base styles for the selection glow */
+.selection\:bg-\[#534AB7\]\/30 ::selection {
+  background-color: rgba(83, 74, 183, 0.3);
 }
 
 /* Smooth transitions for all interactive elements */
@@ -69,5 +71,146 @@ a, button, input, select, textarea {
 
 /* Remove default focus rings and use custom ones */
 *:focus-visible {
-  @apply outline-none ring-2 ring-[#00DFB8]/20 ring-offset-0;
+  @apply outline-none ring-2 ring-[#534AB7]/30 ring-offset-0;
+}
+
+/* ==========================================================================
+   PREMIUM OBSIDIAN-DARK & PURPLE COLOR HARMONIZATION OVERRIDES (CHATBOLT DESIGN SYSTEM)
+   ========================================================================== */
+
+.dark {
+  /* 1. Global text colors */
+  .text-\[\#00DFB8\],
+  .text-\[rgb\(0\2c 223\2c 184\)\],
+  .group-hover\:text-\[\#00DFB8\]:hover,
+  .group-hover\:text-\[\#00DFB8\],
+  .hover\:text-\[\#00DFB8\]:hover,
+  .text-accent {
+    color: #534AB7 !important;
+  }
+
+  /* 2. Global background colors */
+  .bg-\[\#00DFB8\],
+  .bg-\[rgb\(0\2c 223\2c 184\)\],
+  .hover\:bg-\[\#00DFB8\]:hover,
+  .group-hover\:bg-\[\#00DFB8\]:hover,
+  .group-hover\:bg-\[\#00DFB8\],
+  .bg-accent {
+    background-color: #534AB7 !important;
+    color: white !important;
+  }
+
+  /* 3. Translucent background overlays */
+  .bg-\[\#00DFB8\]\/10,
+  .group-hover\:bg-\[\#00DFB8\]\/10:hover,
+  .group-hover\:bg-\[\#00DFB8\]\/10 {
+    background-color: rgba(83, 74, 183, 0.1) !important;
+  }
+
+  .bg-\[\#00DFB8\]\/5 {
+    background-color: rgba(83, 74, 183, 0.05) !important;
+  }
+
+  .bg-\[\#00DFB8\]\/20,
+  .group-hover\:bg-\[\#00DFB8\]\/20:hover {
+    background-color: rgba(83, 74, 183, 0.2) !important;
+  }
+
+  /* 4. Global border colors */
+  .border-\[\#00DFB8\],
+  .border-\[rgb\(0\2c 223\2c 184\)\],
+  .focus\:border-\[\#00DFB8\]:focus,
+  .hover\:border-\[\#00DFB8\]:hover,
+  .group-hover\:border-\[\#00DFB8\]:hover,
+  .group-hover\:border-\[\#00DFB8\],
+  .border-accent {
+    border-color: #534AB7 !important;
+  }
+
+  .border-\[\#00DFB8\]\/10 {
+    border-color: rgba(83, 74, 183, 0.1) !important;
+  }
+
+  .border-\[\#00DFB8\]\/20 {
+    border-color: rgba(83, 74, 183, 0.2) !important;
+  }
+
+  .border-\[\#00DFB8\]\/30,
+  .hover\:border-\[\#00DFB8\]\/30:hover,
+  .group-hover\:border-\[\#00DFB8\]\/30:hover,
+  .group-hover\:border-\[\#00DFB8\]\/30 {
+    border-color: rgba(83, 74, 183, 0.3) !important;
+  }
+
+  .border-\[\#00DFB8\]\/40 {
+    border-color: rgba(83, 74, 183, 0.4) !important;
+  }
+
+  .border-\[\#00DFB8\]\/50,
+  .focus\:border-\[\#00DFB8\]\/50:focus,
+  .hover\:border-\[\#00DFB8\]\/50:hover,
+  .group-hover\:border-\[\#00DFB8\]\/50:hover,
+  .group-hover\:border-\[\#00DFB8\]\/50 {
+    border-color: rgba(83, 74, 183, 0.5) !important;
+  }
+
+  .selection\:bg-\[\#00DFB8\]\/30 ::selection {
+    background-color: rgba(83, 74, 183, 0.3) !important;
+  }
+
+  /* 5. Switch other neon states to purple accent */
+  .bg-\[\#B8FF00\],
+  .hover\:bg-\[\#c8ff20\]:hover,
+  .hover\:bg-\[\#B8FF00\]:hover {
+    background-color: #534AB7 !important;
+    color: white !important;
+  }
+
+  .text-\[\#B8FF00\] {
+    color: #534AB7 !important;
+  }
+
+  .border-\[\#B8FF00\] {
+    border-color: #534AB7 !important;
+  }
+
+  .bg-\[\#B8FF00\]\/10,
+  .hover\:bg-\[\#B8FF00\]\/10:hover {
+    background-color: rgba(83, 74, 183, 0.1) !important;
+  }
+
+  .shadow-\[\#B8FF00\]\/30 {
+    box-shadow: 0 0 12px rgba(83, 74, 183, 0.3) !important;
+  }
+
+  /* 6. General Dashboard Light Mode Text Overrides */
+  .text-\[\#111\],
+  .text-\[\#1A1A1A\] {
+    color: #EDEDED !important;
+  }
+
+  .bg-white,
+  .bg-white\/80 {
+    background-color: #0D0D11 !important;
+  }
+
+  .bg-\[\#FAFAFA\],
+  .bg-\[\#F9F9F9\],
+  .bg-gray-50 {
+    background-color: #050507 !important;
+  }
+
+  .border-black\/5,
+  .border-black\/8,
+  .border-black\/10,
+  .border-black\/\[0\.08\],
+  .border-black\/\[0\.05\],
+  .border-black\/\[0\.03\] {
+    border-color: rgba(255, 255, 255, 0.05) !important;
+  }
+
+  .hover\:bg-gray-50:hover,
+  .hover\:bg-gray-100:hover {
+    background-color: rgba(255, 255, 255, 0.04) !important;
+  }
 }

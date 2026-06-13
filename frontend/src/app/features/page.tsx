@@ -1,73 +1,111 @@
 'use client'
+import React, { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
-import Features from '@/components/Features'
-import FinalCTA from '@/components/FinalCTA'
+import { Sparkles, Globe, Smartphone, Wand2, FileText, Chrome, Radar, Mail, Puzzle, ChevronRight } from 'lucide-react'
+import { getSession, api } from '@/lib/api'
 
 export default function FeaturesPage() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+
+  const handleLaunchFeature = async (promptText: string) => {
+    setLoading(true)
+    try {
+      const session = await getSession()
+      if (!session) {
+        router.push(`/login?prompt=${encodeURIComponent(promptText)}`)
+        return
+      }
+
+      // Auto-deploy target workflow
+      const parsed = await api.workflows.parse(promptText)
+      const created = await api.workflows.create({
+        name: parsed.workflow_name || 'Features Autonomous Action',
+        workflow_type: parsed.workflow_type || 'sequential',
+        original_prompt: promptText,
+        agents: parsed.agents || []
+      })
+      await api.workflows.run(created.workflow.id, {})
+      router.push('/dashboard/workspace')
+    } catch {
+      router.push(`/login?prompt=${encodeURIComponent(promptText)}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const catalog = [
+    { id: 'webapp', title: 'Web App Engine', desc: 'Scaffold responsive Next.js apps structured with Tailwind CSS.', icon: Globe, prompt: 'Build a premium responsive Next.js portfolio website with Outfit typography' },
+    { id: 'mobileapp', title: 'Mobile App builder', desc: 'Build native iOS and Android Expo codebases dynamically.', icon: Smartphone, prompt: 'Generate a native React Native Expo application for tracking workouts' },
+    { id: 'design', title: 'AI brand Designer', desc: 'Create cohesive branding tokens and design sheets autonomously.', icon: Wand2, prompt: 'Design a dynamic color dashboard palette for enterprise tools' },
+    { id: 'slides', title: 'Nano Banana Slides', desc: 'Synthesize concept notes and generate exportable slide outline decks.', icon: FileText, prompt: 'Create a slide presentation explaining Chatbolt business capabilities' },
+    { id: 'browser', title: 'Browser Operator', desc: 'Trigger Playwright cloud browsers to scrap records and bypass logins.', icon: Chrome, prompt: 'Open a clean web browser, search the web, and find me the official YouTube channel of Andrej Karpathy' },
+    { id: 'research', title: 'Parallel Researcher', desc: 'Initiate deep concurrent search swarms with citations.', icon: Radar, prompt: 'Run a deep dive research report on latest generative search engine optimization trends' },
+    { id: 'mail', title: 'Email Forwarder', desc: 'Auto-compose email drip outlines and forward HubSpot accounts.', icon: Mail, prompt: 'Setup a cold outbound drip campaign for marketing directors' },
+    { id: 'skills', title: 'Skills Injector', desc: 'Equip persistent agents with custom API integrations and prompts.', icon: Puzzle, prompt: 'Configure a custom secure workflow for enterprise contract compliance auditing' }
+  ]
+
   return (
-    <div className="bg-[#FDFDFB] min-h-screen">
+    <div className="min-h-screen bg-[#F9F9F9] text-[#111111] font-sans antialiased flex flex-col justify-between selection:bg-black/10 relative overflow-x-hidden">
       <Navbar />
-      <main className="pt-32">
-        <section className="py-24 px-6 border-b border-black/5">
-          <div className="container mx-auto max-w-4xl text-center">
-            <div className="text-[10px] font-bold text-[#00DFB8] uppercase tracking-[0.4em] mb-6">Core Capabilities</div>
-            <h1 className="display-title text-5xl md:text-7xl text-[#1A1A1A] mb-8 tracking-tighter">Everything you need to automate your customer operations.</h1>
-            <p className="text-xl text-[#555555] font-medium leading-relaxed max-w-2xl mx-auto">
-              Chatbolt connects your business data to high-performance AI models, creating a seamless bridge between customer needs and resolution.
-            </p>
-          </div>
-        </section>
 
-        <Features />
+      <main className="flex-1 max-w-5xl mx-auto w-full px-6 pt-32 pb-24 space-y-16 z-10">
         
-        {/* Deep Dive Section */}
-        <section className="py-24 px-6 bg-[#FFFFFF]">
-          <div className="container mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
-              <div>
-                <div className="text-[10px] font-bold text-[#00DFB8] uppercase tracking-[0.4em] mb-6">Data Sovereignty</div>
-                <h2 className="display-title text-4xl text-[#1A1A1A] mb-6">Your data. Your rules.</h2>
-                <p className="text-sm-muted mb-8">
-                  Unlike general-purpose chatbots, Chatbolt agents are strictly grounded in your provided knowledge base. We use advanced RAG (Retrieval-Augmented Generation) to ensure every response is accurate, cited, and safe.
-                </p>
-                <div className="space-y-4">
-                  {[
-                    'End-to-end encryption for all uploaded documents',
-                    'Customizable system prompts for persona control',
-                    'Real-time citation tracking for every answer',
-                    'Automatic PII masking for sensitive conversations'
-                  ].map((item, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <div className="w-1.5 h-1.5 bg-[#00DFB8] rounded-full" />
-                      <span className="text-[11px] font-bold text-[#1A1A1A] uppercase tracking-widest">{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="card p-1 shine-gradient">
-                <div className="bg-[#FDFDFB] p-12 h-full">
-                  <div className="flex flex-col gap-8">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="flex gap-6 animate-fade-in" style={{ animationDelay: `${i * 0.2}s` }}>
-                        <div className="w-10 h-10 bg-black/5 border border-black/10 flex items-center justify-center text-xs font-bold text-[#00DFB8]">0{i}</div>
-                        <div className="flex-1 space-y-2">
-                          <div className="h-2 bg-black/10 w-1/3 rounded-full" />
-                          <div className="h-2 bg-black/5 w-full rounded-full" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+        {/* Title */}
+        <div className="text-center space-y-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/5 text-[10px] font-bold uppercase tracking-widest text-[#444]">
+            <Sparkles size={12} className="text-[#00E599]" fill="currentColor" /> Chatbolt OS Capabilities
           </div>
-        </section>
+          <h1 className="text-4xl md:text-5xl font-serif text-[#111111] tracking-tight font-medium">
+            Autonomous fleet capabilities.
+          </h1>
+          <p className="text-sm text-zinc-500 max-w-lg mx-auto leading-relaxed">
+            Every feature on Chatbolt is backed by a dedicated autonomous agent running closed-loop execution loops.
+          </p>
+        </div>
 
-        <FinalCTA />
+        {/* Feature Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-6">
+          {catalog.map(item => {
+            const Icon = item.icon
+            return (
+              <div 
+                key={item.id}
+                className="bg-white border border-[#EAEAEA] rounded-3xl p-6 flex flex-col justify-between hover:shadow-md transition-shadow"
+              >
+                <div className="space-y-4">
+                  <div className="w-10 h-10 bg-[#00E599]/10 rounded-2xl border border-[#00E599]/20 flex items-center justify-center text-[#00E599] shrink-0">
+                    <Icon size={20} />
+                  </div>
+                  <h3 className="text-xs font-bold text-[#111111] uppercase tracking-tight leading-snug">{item.title}</h3>
+                  <p className="text-[11px] text-zinc-500 leading-relaxed font-semibold">{item.desc}</p>
+                </div>
+
+                <div className="pt-6 border-t border-[#EAEAEA] mt-6 flex items-center justify-between">
+                  <button
+                    onClick={() => router.push(`/features/${item.id}`)}
+                    className="text-[9px] font-bold text-zinc-400 hover:text-[#111111] uppercase tracking-widest bg-transparent border-none outline-none cursor-pointer flex items-center gap-1"
+                  >
+                    Details <ChevronRight size={10} />
+                  </button>
+                  <button
+                    onClick={() => handleLaunchFeature(item.prompt)}
+                    disabled={loading}
+                    className="text-[9px] font-black text-[#00E599] hover:text-[#111111] uppercase tracking-widest bg-transparent border-none outline-none cursor-pointer"
+                  >
+                    Deploy Workflow
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
       </main>
+
       <Footer />
     </div>
   )
 }
-

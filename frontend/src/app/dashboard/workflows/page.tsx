@@ -23,20 +23,28 @@ import {
   Upload,
   Activity,
   Map,
-  Smartphone
+  Smartphone,
+  Shield,
+  Cloud,
+  Scale,
+  Layout
 } from 'lucide-react'
 import { api, getSession } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
 import { PipelineVisualizer } from '@/components/dashboard/PipelineVisualizer'
 import { ActivityLog, LogEntry } from '@/components/dashboard/ActivityLog'
 
-const CATEGORIES = ['All', 'Research', 'Data', 'Productivity', 'Content', 'Coding', 'Marketing', 'Finance', 'HR']
+const CATEGORIES = ['All', 'Research', 'Security', 'CloudOps', 'Legal', 'Product', 'Marketing', 'Productivity', 'Coding', 'Data']
 
 const WORKFLOW_CARDS = [
-  { category: 'Marketing', title: 'Automated CSV Email Forwarder', desc: 'Read 5 target accounts and custom messages from a CSV/Sheet, and execute a mass email forward sequence.', icon: Mail, platforms: ['Google Sheets', 'Gmail'] },
-  { category: 'Health', title: 'Track health & fitness dashboard', desc: 'Sync Google Calendar, Drive, and Notion to build a personalized health tracking plan.', icon: Activity, platforms: ['Google Calendar', 'Google Drive', 'Notion'] },
-  { category: 'Travel', title: 'Plan a travel itinerary from bookings', desc: 'Extract flight/hotel info from Gmail, map out in Calendar, and save to Google Drive.', icon: Map, platforms: ['Gmail', 'Google Calendar', 'Google Drive'] },
-  { category: 'Coding', title: 'Build a mobile app prototype', desc: 'Transform an idea into a functional prototype codebase without writing any code.', icon: Smartphone, platforms: ['GitHub', 'Vercel'] },
+  { category: 'Security', title: 'Automated SAST Security Audit', desc: 'Scan a GitHub repository for OWASP Top 10 vulnerabilities (SQLi, XSS) and autonomously generate code patches.', icon: Shield, platforms: ['GitHub', 'Code'] },
+  { category: 'CloudOps', title: 'FinOps Cost Optimization', desc: 'Analyze AWS/GCP usage metrics and architecture to recommend cost-saving downscaling and resource cleanup.', icon: Cloud, platforms: ['AWS', 'GCP'] },
+  { category: 'Legal', title: 'SOC2 & GDPR Compliance Scan', desc: 'Analyze enterprise contracts and policies against GDPR/SOC2 frameworks to identify risks and missing clauses.', icon: Scale, platforms: ['Google Docs', 'PDF'] },
+  { category: 'Marketing', title: 'Programmatic SEO Generation', desc: 'Generate highly optimized, semantic HTML landing pages based on targeted keywords and competitor analysis.', icon: Search, platforms: ['Web', 'HTML'] },
+  { category: 'Marketing', title: 'Viral Trend & Social Sentiment', desc: 'Track brand sentiment on Twitter/LinkedIn and autonomously draft viral response posts and threads.', icon: Zap, platforms: ['Twitter', 'LinkedIn'] },
+  { category: 'Product', title: 'CRO A/B Test Generator', desc: 'Scrape a live webpage to find UX bottlenecks and generate React/Tailwind code variants to improve conversions.', icon: Layout, platforms: ['React', 'Next.js'] },
+  { category: 'Marketing', title: 'Automated CSV Email Forwarder', desc: 'Read target accounts from a CSV and execute a mass email forward sequence.', icon: Mail, platforms: ['Google Sheets', 'Gmail'] },
+  { category: 'Coding', title: 'Self-Healing CI/CD Pipeline', desc: 'Analyze failed build logs, fetch the broken file, and push a fixed commit back to the branch.', icon: Code2, platforms: ['GitHub', 'Terminal'] },
   { category: 'Research', title: 'Deep dive competitor research', desc: 'Search the web, read sources, compile a structured report with citations into a Google Doc.', icon: Sparkles, platforms: ['Web Search', 'Google Docs'] },
 ]
 

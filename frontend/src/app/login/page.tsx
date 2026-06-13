@@ -4,29 +4,101 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { api, saveSession } from '@/lib/api'
 
+const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+
+function isNetworkError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false
+  const msg = err.message.toLowerCase()
+  return (
+    msg.includes('failed to fetch') ||
+    msg.includes('fetch failed') ||
+    msg.includes('enotfound') ||
+    msg.includes('econnrefused') ||
+    msg.includes('network') ||
+    msg.includes('timeout')
+  )
+}
+
 export default function LoginPage() {
   const [form, setForm] = useState({ email: '', password: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [mode, setMode] = useState<'online' | 'local' | null>(null)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    setLoading(true); setError('')
+    setLoading(true)
+    setError('')
+    setMode(null)
+
+    // ── Path A: Try Supabase with a 3-second timeout ──────────────────
+    let supabaseSuccess = false
     try {
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
+      const supabasePromise = supabase.auth.signInWithPassword({
         email: form.email,
-        password: form.password
+        password: form.password,
       })
-      if (authError) throw new Error(authError.message)
-      if (!data.session) throw new Error('Failed to create session')
-      
-      // Fetch tenant context from our backend using the new session token
-      const { tenant } = await api.auth.me()
-      saveSession(data.session.access_token, tenant)
-      
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('supabase_timeout')), 3000)
+      )
+
+      const { data, error: authError } = await Promise.race([supabasePromise, timeoutPromise])
+
+      if (authError) {
+        // Real Supabase auth error (wrong password etc.) — don't fall through
+        throw new Error(authError.message)
+      }
+
+      if (data?.session) {
+        // Supabase worked — fetch tenant from backend using Supabase token
+        const prevToken = localStorage.getItem('chatbolt_token')
+        localStorage.setItem('chatbolt_token', data.session.access_token)
+        try {
+          const { tenant } = await api.auth.me()
+          saveSession(data.session.access_token, tenant)
+        } catch {
+          // Fallback: store token without tenant — dashboard will fetch it
+          localStorage.setItem('chatbolt_token', data.session.access_token)
+        }
+        supabaseSuccess = true
+        setMode('online')
+        window.location.href = '/dashboard'
+        return
+      }
+    } catch (err: unknown) {
+      const isTimeout = err instanceof Error && err.message === 'supabase_timeout'
+      const isNetwork = isNetworkError(err)
+
+      if (!isTimeout && !isNetwork) {
+        // Real auth failure — show error to user
+        setError(err instanceof Error ? err.message : 'Authentication failed')
+        setLoading(false)
+        return
+      }
+      // Network error or timeout — fall through to local auth
+    }
+
+    if (supabaseSuccess) return
+
+    // ── Path B: Local PostgreSQL fallback auth ────────────────────────
+    try {
+      const res = await fetch(`${BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.email, password: form.password }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Login failed')
+      }
+
+      saveSession(data.token, data.tenant)
+      setMode('local')
       window.location.href = '/dashboard'
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Login failed. Please check your credentials.')
     } finally {
       setLoading(false)
     }
@@ -61,6 +133,13 @@ export default function LoginPage() {
               {error}
             </div>
           )}
+
+          {mode === 'local' && (
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-sm p-3 mb-6 text-xs text-amber-600 text-center">
+              Running in offline mode — remote auth unavailable
+            </div>
+          )}
+
           <form onSubmit={submit} className="space-y-6">
             <div>
               <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#555555] mb-2 block">Email Address</label>
@@ -88,17 +167,17 @@ export default function LoginPage() {
               />
             </div>
             <button 
-              className="w-full bg-[#00DFB8] text-[#FDFDFB] font-bold uppercase tracking-[0.2em] text-[10px] py-4 hover:bg-white transition-all duration-300" 
+              className="w-full bg-[#00DFB8] text-[#FDFDFB] font-bold uppercase tracking-[0.2em] text-[10px] py-4 hover:bg-white transition-all duration-300 disabled:opacity-60" 
               type="submit" 
               disabled={loading}
             >
-              {loading ? 'Authenticating...' : 'Sign In to Dashboard'}
+              {loading ? 'Signing in...' : 'Sign In to Dashboard'}
             </button>
           </form>
         </div>
 
         <p className="text-center mt-8 text-sm text-[#555555]">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <Link href="/signup" className="text-[#00DFB8] font-medium hover:text-[#1A1A1A] transition-colors">Request access</Link>
         </p>
       </div>

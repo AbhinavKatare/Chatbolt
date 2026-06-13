@@ -55,6 +55,7 @@ export function PlaygroundMain({ initialWorkflowId }: PlaygroundMainProps) {
   const [runState, setRunState] = useState<'idle' | 'generating' | 'running' | 'complete' | 'error'>('idle')
   const [logs, setLogs] = useState<any[]>([])
   const [agentSteps, setAgentSteps] = useState<Record<string, any>>({})
+  const [activeRunId, setActiveRunId] = useState<string | null>(null)
   
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
   const [openPanel, setOpenPanel] = useState<'edit' | 'details' | 'test' | null>(null)
@@ -161,6 +162,7 @@ export function PlaygroundMain({ initialWorkflowId }: PlaygroundMainProps) {
     
     try {
       const { run_id } = await api.workflows.run(wId, userInputs)
+      setActiveRunId(run_id)
       const session = await getSession()
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
       const eventSource = new EventSource(`${baseUrl}/workflows/${wId}/runs/${run_id}/stream?token=${session?.token || ''}`, { withCredentials: true })
@@ -171,8 +173,10 @@ export function PlaygroundMain({ initialWorkflowId }: PlaygroundMainProps) {
 
         if (data.type === 'agent_start') {
           setAgentSteps(p => ({ ...p, [data.agent_id]: { status: 'running' } }))
+        } else if (data.type === 'agent_screenshot') {
+          setAgentSteps(p => ({ ...p, [data.agent_id]: { ...p[data.agent_id], screenshot: data.screenshot } }))
         } else if (data.type === 'agent_done') {
-          setAgentSteps(p => ({ ...p, [data.agent_id]: { status: 'completed', duration_ms: data.duration_ms, outputSummary: data.output_summary } }))
+          setAgentSteps(p => ({ ...p, [data.agent_id]: { ...p[data.agent_id], status: 'completed', duration_ms: data.duration_ms, outputSummary: data.output_summary } }))
         } else if (data.type === 'agent_error') {
           setAgentSteps(p => ({ ...p, [data.agent_id]: { status: 'failed' } }))
         } else if (data.type === 'workflow_done') {
@@ -236,40 +240,40 @@ export function PlaygroundMain({ initialWorkflowId }: PlaygroundMainProps) {
   const selectedAgent = agents.find(a => a.id === selectedAgentId)
 
   return (
-    <div className="flex flex-col h-screen bg-[#FAFAFA] font-sans selection:bg-[#B8FF00]/30 overflow-hidden">
+    <div className="flex flex-col h-screen bg-[#050507] font-sans selection:bg-[#00E599]/30 overflow-hidden text-[#EDEDED]">
       {/* Topbar */}
-      <div className="h-[52px] bg-white border-b border-black/[0.08] flex items-center justify-between px-4 shrink-0 z-20 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+      <div className="h-[52px] bg-[#09090B] border-b border-white/[0.04] flex items-center justify-between px-4 shrink-0 z-20 shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
         <div className="flex items-center gap-4">
-          <button onClick={() => router.push('/dashboard/workflows')} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors">
+          <button onClick={() => router.push('/dashboard/workflows')} className="p-1.5 hover:bg-white/5 rounded-lg text-zinc-400 hover:text-white transition-colors">
             <ArrowLeft size={16} />
           </button>
-          <div className="text-[11px] font-black uppercase tracking-widest text-gray-400">Workflows / Playground</div>
-          <div className="w-px h-4 bg-black/10 mx-2" />
+          <div className="text-[11px] font-black uppercase tracking-widest text-zinc-500">Workflows / Playground</div>
+          <div className="w-px h-4 bg-white/10 mx-2" />
           <input 
             value={workflowName} 
             onChange={e => setWorkflowName(e.target.value)}
-            className="text-sm font-bold text-[#111] bg-transparent border-none focus:outline-none hover:bg-gray-50 px-2 py-1 rounded transition-colors w-48"
+            className="text-sm font-bold text-white bg-transparent border-none focus:outline-none hover:bg-white/5 px-2 py-1 rounded transition-colors w-48"
           />
-          <div className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest bg-gray-100 text-gray-500">
+          <div className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest bg-white/5 border border-white/10 text-zinc-400">
             {runState}
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-gray-500 hover:bg-gray-50 rounded-lg border border-transparent hover:border-black/5 transition-all">
+          <button className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg border border-transparent transition-all">
             <Save size={12} /> Save
           </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-gray-500 hover:bg-gray-50 rounded-lg border border-transparent hover:border-black/5 transition-all">
+          <button className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg border border-transparent transition-all">
             <Share size={12} /> Share
           </button>
-          <button className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors">
+          <button className="p-1.5 hover:bg-white/5 rounded-lg text-zinc-400 hover:text-white transition-colors">
             <Settings size={14} />
           </button>
-          <div className="w-px h-4 bg-black/10 mx-1" />
+          <div className="w-px h-4 bg-white/10 mx-1" />
           <button 
             onClick={handleRun}
             disabled={runState === 'running'}
-            className="flex items-center gap-1.5 px-5 py-2 bg-[#B8FF00] text-[#111] rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[#c8ff20] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_2px_8px_rgba(184,255,0,0.3)]">
+            className="flex items-center gap-1.5 px-5 py-2 bg-[#00E599] text-black rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[#00cc88] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_12px_rgba(0,229,153,0.35)]">
             <Play size={12} fill="currentColor" /> {runState === 'running' ? 'Running...' : 'Run Workflow'}
           </button>
         </div>
@@ -277,50 +281,50 @@ export function PlaygroundMain({ initialWorkflowId }: PlaygroundMainProps) {
 
       <div className="flex flex-1 min-h-0 relative">
         {/* Left Panel */}
-        <div className="w-[300px] bg-white border-r border-black/[0.08] flex flex-col shrink-0 z-10 shadow-[1px_0_10px_rgba(0,0,0,0.02)]">
-          <div className="p-5 flex flex-col gap-4 border-b border-black/5">
+        <div className="w-[300px] bg-[#09090B] border-r border-white/[0.04] flex flex-col shrink-0 z-10 shadow-[4px_0_24px_rgba(0,0,0,0.3)]">
+          <div className="p-5 flex flex-col gap-4 border-b border-white/[0.04]">
             <div>
-              <div className="text-[10px] font-black uppercase tracking-widest text-[#111]">Describe your task</div>
-              <div className="text-[10px] text-gray-400 mt-1">Type what you want agents to do</div>
+              <div className="text-[10px] font-black uppercase tracking-widest text-white">Describe your task</div>
+              <div className="text-[10px] text-zinc-500 mt-1">Type what you want agents to do</div>
             </div>
             <textarea
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
               placeholder="e.g. Research top 10 AI tools this week and write a LinkedIn post about them"
-              className="w-full h-32 bg-[#F8F8F8] border border-black/10 rounded-[10px] p-3 text-[13px] resize-y focus:outline-none focus:border-black/20 focus:bg-white transition-all placeholder:text-gray-400"
+              className="w-full h-32 bg-white/[0.02] border border-white/[0.08] rounded-[10px] p-3 text-[13px] text-white resize-y focus:outline-none focus:border-[#00E599] focus:bg-white/[0.04] transition-all placeholder:text-zinc-600"
             />
             <button 
               onClick={handleGenerate}
               disabled={runState === 'generating' || !prompt.trim()}
-              className="w-full py-3 bg-[#111] text-[#B8FF00] rounded-[10px] text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-50">
-              {runState === 'generating' ? <div className="w-3 h-3 border-2 border-[#B8FF00]/30 border-t-[#B8FF00] rounded-full animate-spin" /> : <Sparkles size={12} />}
+              className="w-full py-3 bg-[#00E599] text-black rounded-[10px] text-[10px] font-black uppercase tracking-widest hover:bg-[#00cc88] transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-[0_0_12px_rgba(0,229,153,0.25)]">
+              {runState === 'generating' ? <div className="w-3 h-3 border-2 border-black/30 border-t-black rounded-full animate-spin" /> : <Sparkles size={12} />}
               {runState === 'generating' ? 'Thinking...' : 'Generate Agents →'}
             </button>
           </div>
 
           <div className="flex-1 overflow-y-auto p-5 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="h-px bg-black/5 flex-1" />
-              <div className="text-[9px] font-black uppercase tracking-widest text-gray-400">Needs for each agent</div>
-              <div className="h-px bg-black/5 flex-1" />
+              <div className="h-px bg-white/5 flex-1" />
+              <div className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Needs for each agent</div>
+              <div className="h-px bg-white/5 flex-1" />
             </div>
 
             {missingInputs.length === 0 ? (
-              <div className="text-center py-8 text-gray-300">
-                <Search size={24} className="mx-auto mb-2 opacity-50" />
+              <div className="text-center py-8 text-zinc-600">
+                <Search size={24} className="mx-auto mb-2 opacity-35" />
                 <div className="text-[10px] font-bold uppercase tracking-wider">No inputs required</div>
               </div>
             ) : (
               <div className="space-y-3">
                 {missingInputs.map((input: any, i: number) => (
-                  <div key={i} className="bg-white border border-black/10 rounded-xl p-3 shadow-sm">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-[#111] mb-1">{input.question}</div>
-                    <div className="text-[9px] text-gray-400 mb-2">For: {input.agentName || 'Agent'}</div>
+                  <div key={i} className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-3 shadow-inner">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-white mb-1">{input.question}</div>
+                    <div className="text-[9px] text-zinc-500 mb-2">For: {input.agentName || 'Agent'}</div>
                     <input 
                       value={userInputs[input.field] || ''}
                       onChange={e => setUserInputs(p => ({ ...p, [input.field]: e.target.value }))}
                       placeholder={`Enter ${input.field}...`}
-                      className="w-full border border-black/10 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#B8FF00] transition-colors"
+                      className="w-full bg-[#050507] border border-white/[0.08] rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#00E599] transition-colors placeholder:text-zinc-600"
                     />
                   </div>
                 ))}
@@ -331,7 +335,7 @@ export function PlaygroundMain({ initialWorkflowId }: PlaygroundMainProps) {
 
         {/* Center Canvas */}
         <div 
-          className="flex-1 relative overflow-hidden" 
+          className="flex-1 relative overflow-hidden bg-[#050507]" 
           ref={canvasRef}
           onWheel={handleWheel}
           onMouseDown={() => { setIsPanning(true); setSelectedAgentId(null) }}
@@ -340,7 +344,7 @@ export function PlaygroundMain({ initialWorkflowId }: PlaygroundMainProps) {
           {/* Grid Background */}
           <div className="absolute inset-0 pointer-events-none"
             style={{
-              backgroundImage: 'linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)',
+              backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
               backgroundSize: `${32 * transform.scale}px ${32 * transform.scale}px`,
               backgroundPosition: `${transform.x}px ${transform.y}px`
             }}
@@ -349,24 +353,24 @@ export function PlaygroundMain({ initialWorkflowId }: PlaygroundMainProps) {
           <div style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, transformOrigin: '0 0', width: '100%', height: '100%' }}>
             {agents.length === 0 && runState !== 'generating' && (
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <div className="w-64 h-64 border-2 border-dashed border-black/10 rounded-[2rem] flex flex-col items-center justify-center p-6 text-center bg-white/50 backdrop-blur-sm">
-                  <div className="w-12 h-12 bg-[#B8FF00]/20 rounded-2xl flex items-center justify-center mb-4 text-[#B8FF00]">
+                <div className="w-64 h-64 border border-dashed border-white/10 rounded-[2rem] flex flex-col items-center justify-center p-6 text-center bg-[#0D0D11]/65 backdrop-blur-md">
+                  <div className="w-12 h-12 bg-[#00E599]/10 border border-[#00E599]/20 rounded-2xl flex items-center justify-center mb-4 text-[#00E599]">
                     <Sparkles size={24} />
                   </div>
-                  <div className="text-sm font-bold text-[#111] mb-1">Your agents will appear here</div>
-                  <div className="text-[10px] text-gray-400">Type a task and click Generate agents to start</div>
+                  <div className="text-sm font-bold text-white mb-1">Your agents will appear here</div>
+                  <div className="text-[10px] text-zinc-500">Type a task and click Generate agents to start</div>
                 </div>
               </div>
             )}
 
             {runState === 'generating' && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="bg-white border border-black/10 rounded-2xl p-6 shadow-2xl max-w-[300px] w-full">
+                <div className="bg-[#0D0D11] border border-white/[0.08] rounded-2xl p-6 shadow-2xl max-w-[300px] w-full">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-6 h-6 border-2 border-black/10 border-t-[#B8FF00] rounded-full animate-spin" />
-                    <div className="text-xs font-bold">Analyzing request...</div>
+                    <div className="w-6 h-6 border-2 border-white/10 border-t-[#00E599] rounded-full animate-spin" />
+                    <div className="text-xs font-bold text-white">Analyzing request...</div>
                   </div>
-                  <div className="space-y-2 text-[10px] font-mono text-gray-500">
+                  <div className="space-y-2 text-[10px] font-mono text-zinc-500">
                     <div>→ Identifying task type...</div>
                     <div>→ Selecting agents...</div>
                     <div className="animate-pulse">→ Configuring pipeline...</div>
@@ -397,17 +401,17 @@ export function PlaygroundMain({ initialWorkflowId }: PlaygroundMainProps) {
 
           {/* Canvas Controls */}
           <div className="absolute bottom-6 left-6 flex items-center gap-2 z-10">
-            <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-black/10 rounded-2xl shadow-lg text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all text-[#111]">
+            <button className="flex items-center gap-2 px-4 py-2.5 bg-[#0D0D11] border border-white/10 rounded-2xl shadow-lg text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all text-white">
               <Plus size={14} /> Add Agent
             </button>
           </div>
           <div className="absolute bottom-6 right-6 flex flex-col gap-2 z-10">
-            <div className="flex flex-col bg-white border border-black/10 rounded-xl shadow-lg overflow-hidden">
-              <button onClick={() => setTransform(p => ({ ...p, scale: p.scale + 0.1 }))} className="p-2 hover:bg-gray-50 text-[#111]"><ZoomIn size={16} /></button>
-              <div className="w-full h-px bg-black/5" />
-              <button onClick={() => setTransform(p => ({ ...p, scale: Math.max(0.2, p.scale - 0.1) }))} className="p-2 hover:bg-gray-50 text-[#111]"><ZoomOut size={16} /></button>
-              <div className="w-full h-px bg-black/5" />
-              <button onClick={() => setTransform({ x: 0, y: 0, scale: 1 })} className="p-2 hover:bg-gray-50 text-[#111]"><Maximize size={16} /></button>
+            <div className="flex flex-col bg-[#0D0D11] border border-white/10 rounded-xl shadow-lg overflow-hidden">
+              <button onClick={() => setTransform(p => ({ ...p, scale: p.scale + 0.1 }))} className="p-2 hover:bg-white/5 text-zinc-400 hover:text-white transition-colors"><ZoomIn size={16} /></button>
+              <div className="w-full h-px bg-white/5" />
+              <button onClick={() => setTransform(p => ({ ...p, scale: Math.max(0.2, p.scale - 0.1) }))} className="p-2 hover:bg-white/5 text-zinc-400 hover:text-white transition-colors"><ZoomOut size={16} /></button>
+              <div className="w-full h-px bg-white/5" />
+              <button onClick={() => setTransform({ x: 0, y: 0, scale: 1 })} className="p-2 hover:bg-white/5 text-zinc-400 hover:text-white transition-colors"><Maximize size={16} /></button>
             </div>
           </div>
         </div>
@@ -418,6 +422,8 @@ export function PlaygroundMain({ initialWorkflowId }: PlaygroundMainProps) {
           agents={agents} 
           agentSteps={agentSteps} 
           runStatus={runState === 'generating' ? 'idle' : runState}
+          workflowId={workflowId || undefined}
+          runId={activeRunId || undefined}
         />
 
         {/* Overlays */}
@@ -452,32 +458,32 @@ export function PlaygroundMain({ initialWorkflowId }: PlaygroundMainProps) {
         {/* Validation Modal */}
         {validationModal.isOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setValidationModal(p => ({ ...p, isOpen: false }))} />
-            <div className="relative bg-white rounded-[32px] shadow-2xl w-full max-w-md p-8 animate-in fade-in zoom-in duration-200">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setValidationModal(p => ({ ...p, isOpen: false }))} />
+            <div className="relative bg-[#0E0E12] border border-white/[0.08] rounded-[32px] shadow-2xl w-full max-w-md p-8 animate-in fade-in zoom-in duration-200">
               <button 
                 onClick={() => setValidationModal(p => ({ ...p, isOpen: false }))}
-                className="absolute top-6 right-6 p-2 rounded-xl hover:bg-gray-100 transition-colors text-gray-400">
+                className="absolute top-6 right-6 p-2 rounded-xl hover:bg-white/5 transition-colors text-zinc-500 hover:text-white">
                 <X size={18} />
               </button>
               
-              <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mb-6 text-amber-500">
+              <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center mb-6 text-amber-500">
                 <AlertTriangle size={32} />
               </div>
               
-              <h2 className="text-2xl font-black text-[#111] mb-2 tracking-tight">Data Required</h2>
-              <p className="text-gray-500 text-sm mb-6 leading-relaxed">
+              <h2 className="text-2xl font-black text-white mb-2 tracking-tight">Data Required</h2>
+              <p className="text-zinc-400 text-sm mb-6 leading-relaxed">
                 We need a bit more information before we can start this workflow. Please provide the following:
               </p>
               
               <div className="space-y-4 mb-8">
                 {validationModal.missing.map((input, i) => (
-                  <div key={i} className="flex items-start gap-3 p-3 bg-gray-50 rounded-2xl border border-black/5">
-                    <div className="w-5 h-5 bg-[#B8FF00] rounded-full flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">
+                  <div key={i} className="flex items-start gap-3 p-3 bg-white/[0.02] border border-white/5 rounded-2xl">
+                    <div className="w-5 h-5 bg-[#00E599] rounded-full flex items-center justify-center text-[10px] font-black text-black shrink-0 mt-0.5">
                       {i + 1}
                     </div>
                     <div>
-                      <div className="text-[11px] font-black uppercase tracking-wider text-[#111]">{input.question}</div>
-                      <div className="text-[10px] text-gray-400">Agent: {input.agentName || 'Workflow'}</div>
+                      <div className="text-[11px] font-black uppercase tracking-wider text-white">{input.question}</div>
+                      <div className="text-[10px] text-zinc-500">Agent: {input.agentName || 'Workflow'}</div>
                     </div>
                   </div>
                 ))}
@@ -485,7 +491,7 @@ export function PlaygroundMain({ initialWorkflowId }: PlaygroundMainProps) {
 
               <button 
                 onClick={() => setValidationModal(p => ({ ...p, isOpen: false }))}
-                className="w-full py-4 bg-[#111] text-[#B8FF00] rounded-2xl text-[12px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-[0_10px_20px_rgba(0,0,0,0.1)]">
+                className="w-full py-4 bg-[#00E599] text-black rounded-2xl text-[12px] font-black uppercase tracking-widest hover:bg-[#00cc88] transition-all shadow-[0_0_12px_rgba(0,229,153,0.3)]">
                 Got it, let me add that
               </button>
             </div>
