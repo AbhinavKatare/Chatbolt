@@ -1,3 +1,4 @@
+import { logger } from '../services/logger.service';
 import { callLLM } from './base.agent'
 import { AgentOutput, WorkflowAgent } from '../types'
 import { runEmitter } from '../services/sse.service'
@@ -9,7 +10,7 @@ export async function runReporter(
 ): Promise<AgentOutput> {
   const startTime = Date.now()
   
-  console.log(`[Agent: ${agent.name}] Generating final report...`)
+  logger.info(`[Agent: ${agent.name}] Generating final report...`)
   runEmitter.emitEvent(runId, 'agent_start', { agentId: agent.id, name: agent.name })
 
   try {
@@ -20,14 +21,22 @@ export async function runReporter(
     const { content: report, confidence } = await callLLM(
       model,
       agent.system_prompt || 'You are a professional business reporter. Summarize all findings into a polished executive report.',
-      `Full Workflow Results: ${allPreviousOutputs}\n\nTask: ${agent.description}`
+      `Full Workflow Results: ${allPreviousOutputs}\n\nTask: ${agent.description}`,
+      2000,
+      1,
+      runId,
+      agent.name
     )
 
     runEmitter.emitEvent(runId, 'agent_progress', { message: 'Formatting report...' })
     const { content: reportHtml } = await callLLM(
       model,
       'Convert the following markdown report into clean, professional HTML. Return ONLY the HTML code.',
-      report
+      report,
+      2000,
+      1,
+      runId,
+      agent.name
     )
 
     const output: AgentOutput = {

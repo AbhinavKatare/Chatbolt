@@ -1,3 +1,4 @@
+import { logger } from '../services/logger.service';
 import { callLLM } from './base.agent'
 import { AgentOutput, WorkflowAgent } from '../types'
 import { runEmitter } from '../services/sse.service'
@@ -9,7 +10,7 @@ export async function runWriter(
 ): Promise<AgentOutput> {
   const startTime = Date.now()
   
-  console.log(`[Agent: ${agent.name}] Starting writing...`)
+  logger.info(`[Agent: ${agent.name}] Starting writing...`)
   runEmitter.emitEvent(runId, 'agent_start', { agentId: agent.id, name: agent.name })
 
   try {
@@ -21,7 +22,11 @@ export async function runWriter(
     const { content, confidence } = await callLLM(
       model,
       agent.system_prompt,
-      `Previous Research/Data: ${previousOutputs}\n\nStyle Preference: ${userStyle}\n\nTask: ${agent.description}`
+      `Previous Research/Data: ${previousOutputs}\n\nStyle Preference: ${userStyle}\n\nTask: ${agent.description}`,
+      2000,
+      1,
+      runId,
+      agent.name
     )
 
     let subjectLine = ''
@@ -30,7 +35,11 @@ export async function runWriter(
       const { content: sub } = await callLLM(
         model,
         'Generate a catchy and relevant email subject line for the following content. Return ONLY the subject text.',
-        content
+        content,
+        2000,
+        1,
+        runId,
+        agent.name
       )
       subjectLine = sub
     }

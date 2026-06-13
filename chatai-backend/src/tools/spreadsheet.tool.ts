@@ -1,3 +1,4 @@
+import { logger } from '../services/logger.service';
 import fs from 'fs'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
@@ -63,7 +64,7 @@ export async function exportToXlsx({ data, filePath }: { data: any[], filePath: 
   return { success: true, filePath }
 }
 
-export async function analyzeData({ data, question }: { data: any[], question: string }) {
+export async function analyzeData({ data, question, runId, agentName }: { data: any[], question: string, runId?: string, agentName?: string }) {
   const sample = data.slice(0, 50)
   const prompt = `Analyze this dataset and answer the following question: ${question}
   
@@ -72,12 +73,32 @@ export async function analyzeData({ data, question }: { data: any[], question: s
   
   Provide insights, patterns, and any anomalies detected.`
 
-  const { content: analysis } = await callLLM('', 'You are a professional data scientist.', prompt)
+  const { content: analysis } = await callLLM('', 'You are a professional data scientist.', prompt, 2000, 1, runId, agentName)
   return { analysis }
 }
 
+function getSheetsClient(apiKey?: string) {
+  const saJson = (process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '').trim();
+  if (saJson && saJson !== '{}') {
+    try {
+      logger.info('[Google Sheets] Using Service Account Authentication');
+      const auth = new google.auth.GoogleAuth({
+        credentials: JSON.parse(saJson),
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      });
+      return google.sheets({ version: 'v4', auth });
+    } catch (err: any) {
+      console.error('[Google Sheets] Service Account auth initialization failed:', err.message);
+    }
+  }
+
+  logger.info('[Google Sheets] Using API Key / Auth Fallback');
+  const key = apiKey || (process.env.GOOGLE_API_KEY || '').trim();
+  return google.sheets({ version: 'v4', auth: key });
+}
+
 export async function readGoogleSheet({ sheetId, range, apiKey }: { sheetId: string, range: string, apiKey?: string }) {
-  const sheets = google.sheets({ version: 'v4', auth: apiKey || process.env.GOOGLE_API_KEY })
+  const sheets = getSheetsClient(apiKey)
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetId,
     range: range || 'Sheet1!A:Z',
@@ -89,7 +110,7 @@ export async function readGoogleSheet({ sheetId, range, apiKey }: { sheetId: str
 }
 
 export async function writeGoogleSheet({ sheetId, range, values, apiKey }: { sheetId: string, range: string, values: any[][], apiKey?: string }) {
-  const sheets = google.sheets({ version: 'v4', auth: apiKey || process.env.GOOGLE_API_KEY })
+  const sheets = getSheetsClient(apiKey)
   await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,
     range: range || 'Sheet1!A1',
@@ -112,4 +133,90 @@ export function formatAsTable(data: any[]) {
   })
   html += '</tbody></table>'
   return html
+}
+
+export async function applyProfessionalFormatting({ sheetId, sheetName, apiKey }: { sheetId: string, sheetName: string, apiKey?: string }) {
+  const sheets = getSheetsClient(apiKey)
+  
+  try {
+    const meta = await sheets.spreadsheets.get({ spreadsheetId: sheetId })
+    const sheet = meta.data.sheets?.find(s => s.properties?.title === sheetName)
+    const gridId = sheet?.properties?.sheetId || 0
+    
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sheetId,
+      requestBody: {
+        requests: [
+          {
+            updateSheetProperties: {
+              properties: {
+                sheetId: gridId,
+                gridProperties: {
+                  frozenRowCount: 1
+                }
+              },
+              fields: 'gridProperties.frozenRowCount'
+            }
+          },
+          {
+            repeatCell: {
+              range: {
+                sheetId: gridId,
+                startRowIndex: 0,
+                endRowIndex: 1
+              },
+              cell: {
+                userEnteredFormat: {
+                  backgroundColor: { red: 0.15, green: 0.15, blue: 0.18 },
+                  textFormat: {
+                    bold: true,
+                    foregroundColor: { red: 1, green: 1, blue: 1 },
+                    fontSize: 10
+                  },
+                  horizontalAlignment: 'CENTER'
+                }
+              },
+              fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)'
+            }
+          },
+          {
+            addConditionalFormatRule: {
+              rule: {
+                ranges: [
+                  {
+                    sheetId: gridId,
+                    startRowIndex: 1
+                  }
+                ],
+                booleanRule: {
+                  condition: {
+                    type: 'CUSTOM_FORMULA',
+                    values: [{ userEnteredValue: '=ISEVEN(ROW())' }]
+                  },
+                  format: {
+                    backgroundColor: { red: 0.96, green: 0.96, blue: 0.98 }
+                  }
+                }
+              },
+              index: 0
+            }
+          },
+          {
+            autoResizeDimensions: {
+              dimensions: {
+                sheetId: gridId,
+                dimension: 'COLUMNS',
+                startIndex: 0,
+                endIndex: 26
+              }
+            }
+          }
+        ]
+      }
+    })
+    return { success: true }
+  } catch (err: any) {
+    console.warn('[Google Sheets] Failed to apply formatting:', err.message)
+    return { success: false, error: err.message }
+  }
 }

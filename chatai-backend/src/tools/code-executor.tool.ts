@@ -1,3 +1,4 @@
+import { logger } from '../services/logger.service';
 import { callLLM } from '../agents/base.agent'
 
 export async function analyzeCode({ code, language }: { code: string, language: string }) {
@@ -17,10 +18,29 @@ export async function writeCode({ task, language, context }: { task: string, lan
   Task: ${task}
   ${context ? `Context: ${context}` : ''}
   
-  Return ONLY the code blocks.`
+  Return ONLY the code blocks without markdown formatting if possible.`
 
   const { content: code } = await callLLM('', 'You are an elite software engineer. Write clean, efficient, and well-documented code.', prompt)
   return { code }
+}
+
+import { sandboxService } from '../services/sandbox.service'
+
+/**
+ * Sandboxed execution of Python code for Data Analysis pipelines.
+ */
+export async function executePython({ code }: { code: string }): Promise<{ stdout: string, stderr: string, success: boolean }> {
+  // Strip markdown formatting if the LLM wrapped it in ```python ... ```
+  let cleanCode = code
+  if (cleanCode.startsWith('```')) {
+    const lines = cleanCode.split('\n')
+    if (lines[0].startsWith('```')) lines.shift()
+    if (lines[lines.length - 1].startsWith('```')) lines.pop()
+    cleanCode = lines.join('\n')
+  }
+
+  logger.info('[Code Executor Tool] Executing Python code inside micro-sandbox environment...')
+  return sandboxService.runPython(cleanCode)
 }
 
 export async function debugCode({ code, error }: { code: string, error: string }) {

@@ -1,6 +1,6 @@
 import axios from 'axios'
 import * as cheerio from 'cheerio'
-import { callLLM } from '../agents/base.agent'
+import { callLLM, safeParseJSON } from '../agents/base.agent'
 
 export async function scrapeUrl({ url }: { url: string }) {
   try {
@@ -66,7 +66,7 @@ export async function extractStructured({ text, schema, goal }: { text: string, 
 
   const { content } = await callLLM('', 'You are a data extraction expert.', prompt)
   try {
-    return JSON.parse(content.replace(/```json/g, '').replace(/```/g, '').trim())
+    return safeParseJSON(content)
   } catch {
     return { error: 'Failed to parse JSON', raw: content }
   }

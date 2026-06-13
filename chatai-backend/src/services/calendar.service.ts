@@ -1,3 +1,4 @@
+import { logger } from './logger.service';
 import { google } from 'googleapis'
 
 interface CalendarEventInput {
@@ -44,7 +45,7 @@ export async function createCalendarEvent(input: CalendarEventInput) {
       requestBody: event,
     })
 
-    console.log(`✅ Calendar event created: ${response.data.htmlLink}`)
+    logger.info(`✅ Calendar event created: ${response.data.htmlLink}`)
     return response.data
   } catch (err) {
     console.error('Failed to create calendar event:', err)

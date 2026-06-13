@@ -1,6 +1,7 @@
+import { logger } from './logger.service';
 import OpenAI from 'openai'
 import { query, queryOne } from '../db'
-import { Agent, ChunkSource } from '../types'
+import { Agent, ChunkSource, Tenant } from '../types'
 import { Response } from 'express'
 import { syncLeadToSheet } from './sheets.service'
 
@@ -40,14 +41,10 @@ function getClient(model: string): OpenAI {
   return nvidiaLlama
 }
 
+import { embedText as baseEmbedText } from '../agents/base.agent'
+
 export async function embedText(text: string): Promise<number[]> {
-  // Use NVIDIA's embedding model (using Llama key as it is a general NIM key)
-  const res = await nvidiaLlama.embeddings.create({ 
-    model: 'nvidia/nv-embedqa-e5-v5', 
-    input: text,
-    encoding_format: 'float'
-  })
-  return res.data[0].embedding
+  return baseEmbedText(text)
 }
 
 async function searchChunks(agentId: string, tenantId: string, embedding: number[], limit = 5) {
@@ -78,6 +75,8 @@ export async function streamChat(options: {
   const agent = await queryOne<Agent>('SELECT * FROM agents WHERE id = $1 AND tenant_id = $2 AND is_active = true', [agentId, tenantId])
   if (!agent) throw new Error('Agent not found')
 
+  const tenant = await queryOne<Tenant>('SELECT * FROM tenants WHERE id = $1', [tenantId])
+
   const config = agent.config as any
   const model: string = config?.model || 'meta/llama-3.1-8b-instruct'
 
@@ -93,7 +92,16 @@ export async function streamChat(options: {
 
   const persona = agent.persona as any
   const context = chunks.length > 0 ? chunks.map((c, i) => `[${i+1}] ${c.content}`).join('\n\n') : 'No relevant content found.'
-  const systemPrompt = `${agent.system_prompt}\nTone: ${persona?.tone || 'professional'}\n\nKNOWLEDGE BASE:\n${context}\n\nAnswer ONLY from the knowledge base. If unsure, offer to escalate.`
+  
+  let userRAG = ''
+  if (tenant?.user_details || tenant?.user_purpose) {
+    userRAG = `\n\n[USER CONTEXT RAG]\n`
+    if (tenant.user_details) userRAG += `- User/Business Details: ${tenant.user_details}\n`
+    if (tenant.user_purpose) userRAG += `- User Primary Purpose/Goals: ${tenant.user_purpose}\n`
+    userRAG += `Please adapt your tone, formatting constraints, and answers to align perfectly with the user context.`
+  }
+
+  const systemPrompt = `${agent.system_prompt}\nTone: ${persona?.tone || 'professional'}${userRAG}\n\nKNOWLEDGE BASE:\n${context}\n\nAnswer ONLY from the knowledge base. If unsure, offer to escalate.`
 
   res.setHeader('Content-Type', 'text/event-stream')
   res.setHeader('Cache-Control', 'no-cache')
@@ -174,7 +182,7 @@ async function extractAndSaveLead(agentId: string, tenantId: string, conversatio
         JSON.stringify({ requirement: data.requirement, budget: data.budget }),
       ]) as any
 
-      console.log('[Lead] Extracted and saved for conversation ' + conversationId)
+      logger.info('[Lead] Extracted and saved for conversation ' + conversationId)
 
       // Sync to Google Sheets if configured
       if (process.env.LEADS_SHEET_ID && newLead?.id) {
@@ -189,17 +197,29 @@ async function extractAndSaveLead(agentId: string, tenantId: string, conversatio
 export async function getAnswer(agentId: string, tenantId: string, userMessage: string, history: Array<{ role: 'user'|'assistant'; content: string }> = []) {
   const agent = await queryOne<Agent>('SELECT * FROM agents WHERE id = $1 AND tenant_id = $2', [agentId, tenantId])
   if (!agent) throw new Error('Agent not found')
+
+  const tenant = await queryOne<Tenant>('SELECT * FROM tenants WHERE id = $1', [tenantId])
+
   const config = agent.config as any
   const model: string = config?.model || 'meta/llama-3.1-8b-instruct'
   const embedding = await embedText(userMessage)
   const chunks = await searchChunks(agentId, tenantId, embedding, 5)
   const avgConfidence = chunks.length > 0 ? chunks.reduce((s, c) => s + c.similarity, 0) / chunks.length : 0
   const context = chunks.map(c => c.content).join('\n\n')
+  
+  let userRAG = ''
+  if (tenant?.user_details || tenant?.user_purpose) {
+    userRAG = `\n\n[USER CONTEXT RAG]\n`
+    if (tenant.user_details) userRAG += `- User/Business Details: ${tenant.user_details}\n`
+    if (tenant.user_purpose) userRAG += `- User Primary Purpose/Goals: ${tenant.user_purpose}\n`
+    userRAG += `Please adapt your tone, formatting constraints, and answers to align perfectly with the user context.`
+  }
+
   const client = getClient(model)
   const response = await client.chat.completions.create({
     model, temperature: config?.temperature ?? 0.3, max_tokens: config?.max_tokens ?? 800,
     messages: [
-      { role: 'system', content: `${agent.system_prompt}\n\nKNOWLEDGE BASE:\n${context}` },
+      { role: 'system', content: `${agent.system_prompt}${userRAG}\n\nKNOWLEDGE BASE:\n${context}` },
       ...history.slice(-10).map(m => ({ role: m.role as any, content: m.content })),
       { role: 'user', content: userMessage },
     ],

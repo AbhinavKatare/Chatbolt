@@ -1,3 +1,4 @@
+import { logger } from '../services/logger.service';
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import { runWebSearch } from "./web-search.tool";
@@ -85,7 +86,7 @@ export const readCsvTool = tool(
 export const sendSmsTool = tool(
   async ({ to, message }) => {
     // Placeholder for Twilio integration
-    console.log(`[SMS] Sending to ${to}: ${message}`);
+    logger.info(`[SMS] Sending to ${to}: ${message}`);
     if (!process.env.TWILIO_ACCOUNT_SID) {
       return "Error: Twilio credentials not configured in environment.";
     }

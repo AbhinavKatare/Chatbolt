@@ -1,8 +1,9 @@
+import { logger } from '../services/logger.service';
 import axios from 'axios'
 import * as cheerio from 'cheerio'
 
 export async function runWebSearch({ query }: { query: string }) {
-  console.log(`🔍 Searching web for: ${query}`)
+  logger.info(`🔍 Searching web for: ${query}`)
   
   let results: any[] = []
   

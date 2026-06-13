@@ -1,3 +1,4 @@
+import { logger } from './logger.service';
 import twilio from 'twilio'
 
 const client = twilio(
@@ -11,7 +12,7 @@ interface Contact {
 }
 
 export async function sendOutreachBatch(contacts: Contact[], template: string) {
-  console.log(`📣 Starting WhatsApp broadcast to ${contacts.length} contacts...`)
+  logger.info(`📣 Starting WhatsApp broadcast to ${contacts.length} contacts...`)
   
   for (const contact of contacts) {
     try {
@@ -24,7 +25,7 @@ export async function sendOutreachBatch(contacts: Contact[], template: string) {
         body: message,
       })
       
-      console.log(`✅ WhatsApp sent to ${contact.phone}`)
+      logger.info(`✅ WhatsApp sent to ${contact.phone}`)
       
       // Delay to avoid spam flags (2 seconds)
       await new Promise(resolve => setTimeout(resolve, 2000))

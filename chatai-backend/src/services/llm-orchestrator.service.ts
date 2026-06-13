@@ -1,3 +1,4 @@
+import { logger } from './logger.service';
 import { OpenAI } from 'openai';
 
 /**
@@ -37,7 +38,7 @@ export class LLMOrchestrator {
     const modelId = NIM_MODELS[params.model as keyof typeof NIM_MODELS] || params.model;
     
     try {
-      console.log(`[LLMOrchestrator] Dispatching to ${modelId}`);
+      logger.info(`[LLMOrchestrator] Dispatching to ${modelId}`);
       const response = await this.client.chat.completions.create({
         model: modelId,
         messages: params.messages,

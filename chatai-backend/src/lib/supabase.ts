@@ -13,5 +13,11 @@ export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
+  },
+  global: {
+    fetch: (url: any, opts: any) => Promise.race([
+      fetch(url, opts),
+      new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Supabase timeout')), 3000))
+    ])
   }
 })

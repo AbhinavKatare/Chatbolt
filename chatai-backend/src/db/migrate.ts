@@ -1,3 +1,4 @@
+import { logger } from '../services/logger.service';
 import { db } from './index'
 import dotenv from 'dotenv'
 dotenv.config()
@@ -338,13 +339,164 @@ CREATE TABLE IF NOT EXISTS agent_chunks (
 
 CREATE INDEX IF NOT EXISTS agent_memory_agent_id_idx ON agent_memory (agent_id);
 CREATE INDEX IF NOT EXISTS agent_chunks_agent_id_idx ON agent_chunks (agent_id);
+
+-- Workflow Events for Event Sourcing (Phase 4)
+CREATE TABLE IF NOT EXISTS workflow_events (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  run_id UUID NOT NULL REFERENCES workflow_runs(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL,
+  payload JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS workflow_events_run_id_idx ON workflow_events (run_id);
+
+-- Durable Task Queue fallback (Phase 2)
+CREATE TABLE IF NOT EXISTS workflow_jobs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  run_id UUID NOT NULL,
+  job_type TEXT NOT NULL,
+  payload JSONB DEFAULT '{}',
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
+  attempts INTEGER DEFAULT 0,
+  max_attempts INTEGER DEFAULT 3,
+  error_message TEXT,
+  run_at TIMESTAMPTZ DEFAULT NOW(),
+  locked_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS workflow_jobs_status_run_at_idx ON workflow_jobs (status, run_at);
+
+-- ── 1. UNIVERSAL MEMORY GRAPH SCHEMA ──
+CREATE TABLE IF NOT EXISTS memory_entities (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  entity_type VARCHAR(50) NOT NULL CHECK (entity_type IN ('User', 'Organization', 'Agent', 'Employee', 'Project', 'Goal', 'Task', 'Document', 'Meeting', 'Workflow', 'File', 'Decision', 'Knowledge', 'Customer', 'Opportunity')),
+  name VARCHAR(255) NOT NULL,
+  description TEXT DEFAULT '',
+  embedding vector(1536),
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS memory_entities_type_idx ON memory_entities(tenant_id, entity_type);
+
+CREATE TABLE IF NOT EXISTS memory_relationships (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  source_id UUID NOT NULL REFERENCES memory_entities(id) ON DELETE CASCADE,
+  target_id UUID NOT NULL REFERENCES memory_entities(id) ON DELETE CASCADE,
+  relationship_type VARCHAR(100) NOT NULL,
+  weight NUMERIC(4,2) DEFAULT 1.00,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS memory_relationships_source_idx ON memory_relationships(source_id);
+
+CREATE TABLE IF NOT EXISTS memory_decisions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  agent_id UUID REFERENCES workflow_agents(id) ON DELETE SET NULL,
+  run_id UUID REFERENCES workflow_runs(id) ON DELETE CASCADE,
+  decision_type VARCHAR(100) NOT NULL,
+  rationale TEXT NOT NULL,
+  alternatives JSONB DEFAULT '[]',
+  impact_score INTEGER DEFAULT 5 CHECK (impact_score BETWEEN 1 AND 10),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS memory_goals (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'completed', 'failed')),
+  target_metrics JSONB DEFAULT '{}',
+  progress NUMERIC(5,2) DEFAULT 0.00,
+  outcome_score NUMERIC(3,2),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ── 2. AGENT GOVERNANCE RULES ──
+CREATE TABLE IF NOT EXISTS agent_governance_rules (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  agent_role VARCHAR(100) NOT NULL,
+  can_send_emails BOOLEAN DEFAULT false,
+  can_call_external_api BOOLEAN DEFAULT false,
+  daily_cost_limit NUMERIC(10,4) DEFAULT 10.0000,
+  approval_required_above_cost NUMERIC(10,4) DEFAULT 1.0000,
+  risk_tolerance_threshold NUMERIC(3,2) DEFAULT 0.70,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS agent_gov_role_idx ON agent_governance_rules(tenant_id, agent_role);
+
+-- ── 3. MARKETPLACE ECOSYSTEM SCHEMA ──
+CREATE TABLE IF NOT EXISTS marketplace_items (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name VARCHAR(255) NOT NULL,
+  description TEXT DEFAULT '',
+  item_type VARCHAR(50) NOT NULL CHECK (item_type IN ('Agent', 'Workflow', 'Template', 'Integration', 'Department')),
+  config JSONB NOT NULL DEFAULT '{}',
+  price NUMERIC(10,2) DEFAULT 0.00,
+  creator_id UUID REFERENCES tenants(id) ON DELETE SET NULL,
+  downloads INTEGER DEFAULT 0,
+  rating_avg NUMERIC(3,2) DEFAULT 5.00,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS market_type_price_idx ON marketplace_items(item_type, price);
+
+CREATE TABLE IF NOT EXISTS marketplace_ratings (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  item_id UUID NOT NULL REFERENCES marketplace_items(id) ON DELETE CASCADE,
+  buyer_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  review TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ── Phase 2.1 schemas ──
+CREATE TABLE IF NOT EXISTS agent_versions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  agent_id UUID NOT NULL REFERENCES workflow_agents(id) ON DELETE CASCADE,
+  version_hash VARCHAR(64) NOT NULL UNIQUE,
+  system_prompt TEXT NOT NULL,
+  config JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS agent_version_hash_idx ON agent_versions(version_hash);
+
+CREATE TABLE IF NOT EXISTS memory_skills (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  prompt_trigger TEXT NOT NULL,
+  dag_topology JSONB NOT NULL DEFAULT '{}',
+  success_count INTEGER DEFAULT 1,
+  embedding vector(1536),
+  is_public BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS cryptographic_audit_ledger (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  run_id UUID REFERENCES workflow_runs(id) ON DELETE SET NULL,
+  event_type VARCHAR(100) NOT NULL,
+  payload JSONB NOT NULL,
+  parent_hash VARCHAR(64),
+  current_hash VARCHAR(64) NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS crypto_ledger_hash_idx ON cryptographic_audit_ledger(tenant_id, current_hash);
 `
 
 async function migrate() {
-  console.log('🚀 Running migrations...')
+  logger.info('🚀 Running migrations...')
   try {
     await db.query(migration)
-    console.log('✅ Migrations complete')
+    logger.info('✅ Migrations complete')
   } catch (err) {
     console.error('❌ Migration failed:', err)
     process.exit(1)

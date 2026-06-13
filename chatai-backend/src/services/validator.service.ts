@@ -26,8 +26,9 @@ export async function validateAgentOutput(output: AgentOutput, expectedType: str
       break
     
     case 'report':
-      if (!output.data.report_markdown) issues.push('Report markdown is missing')
-      if (output.data.report_markdown?.length < 100) issues.push('Report is too short')
+      const reportVal = output.data.report_markdown || output.data.report
+      if (!reportVal) issues.push('Report markdown or report content is missing')
+      if (reportVal && reportVal.length < 100) issues.push('Report is too short')
       break
     
     case 'code':

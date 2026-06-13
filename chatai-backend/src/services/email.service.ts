@@ -1,3 +1,4 @@
+import { logger } from './logger.service';
 // src/services/email.service.ts
 // Uses nodemailer with your personal SMTP (Gmail app password, etc.)
 // Install: npm install nodemailer @types/nodemailer
@@ -26,7 +27,7 @@ interface EmailOptions {
   html: string
 }
 
-async function sendEmail({ to, subject, html }: EmailOptions): Promise<void> {
+export async function sendEmail({ to, subject, html }: EmailOptions): Promise<void> {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     console.warn('SMTP not configured — skipping email to:', to)
     return
@@ -36,7 +37,7 @@ async function sendEmail({ to, subject, html }: EmailOptions): Promise<void> {
     from: `"ChatAI" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
     to, subject, html,
   })
-  console.log(`📧 Email sent to ${to}: ${subject}`)
+  logger.info(`📧 Email sent to ${to}: ${subject}`)
 }
 
 // ── Email templates ───────────────────────────────────────────────
@@ -148,3 +149,25 @@ export async function sendMonthlyReport(to: string, name: string, stats: { conve
     `),
   })
 }
+
+export async function sendTeamInviteEmail(
+  to: string,
+  inviterName: string,
+  teamName: string,
+  inviteUrl: string
+): Promise<void> {
+  await sendEmail({
+    to,
+    subject: `You've been invited to ${teamName}`,
+    html: baseLayout(`
+      <h1>You've been invited to join ${teamName}!</h1>
+      <p>Hi, <strong>${inviterName}</strong> has invited you to join their team workspace <strong>${teamName}</strong> on ChatAI.</p>
+      <p>Click the button below to accept the invitation and access the team workspace.</p>
+      <div style="margin: 24px 0;">
+        <a href="${inviteUrl}" class="btn">Accept Invitation →</a>
+      </div>
+      <p style="font-size:12px; color:#555;">Or copy and paste this URL into your browser: <br>${inviteUrl}</p>
+    `),
+  })
+}
+

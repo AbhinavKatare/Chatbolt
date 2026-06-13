@@ -1,0 +1,314 @@
+{
+  "tenants": [
+    {
+      "id": "d34930ea-af1a-4094-9082-b47df3fb8075",
+      "created_at": "2026-06-11T18:30:14.982Z",
+      "name": "test_user_1@chatbolt.ai",
+      "email": "$2a$10$GzhFm3kNR9D8OHqE3B14aeYb/OegpEnuTzGUrwO8wlajHqn7WhzAe"
+    }
+  ],
+  "workflows": [],
+  "workflow_agents": [
+    {
+      "id": "1e9886ab-f970-4df6-9262-929d186fb57e",
+      "created_at": "2026-06-08T17:10:34.483Z",
+      "workflow_id": "03706d62-e4d1-420a-a3ed-8af850ce0e86",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "position": 1,
+      "name": "Gather information on top 3 PM tools",
+      "role": "researcher",
+      "description": "Search the web for the top 3 project management tools and collect key features, pricing, and user reviews",
+      "system_prompt": "You are a researcher tasked with identifying the top 3 project management tools currently available. Gather detailed information on each tool, including key features, pricing models, user reviews, and any unique selling points. Ensure the data is comprehensive and up-to-date.",
+      "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"web_search\"]}"
+    },
+    {
+      "id": "a76d7c01-f3f7-4941-9153-24b85aec061b",
+      "created_at": "2026-06-08T17:10:34.500Z",
+      "workflow_id": "03706d62-e4d1-420a-a3ed-8af850ce0e86",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "position": 2,
+      "name": "Create spreadsheet with PM tools data",
+      "role": "spreadsheet",
+      "description": "Take the results from step1 and compile them into a structured spreadsheet with columns for tool name, features, pricing, and reviews",
+      "system_prompt": "You are a spreadsheet specialist. Using the data gathered in step1, create a structured spreadsheet with the following columns: Tool Name, Key Features, Pricing, User Reviews, and Unique Selling Points. Ensure the data is well-organized and easy to read.",
+      "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"spreadsheet\"]}"
+    },
+    {
+      "id": "89969c3c-3092-4b5b-b61d-1e3a76cebcb0",
+      "created_at": "2026-06-08T17:10:34.518Z",
+      "workflow_id": "03706d62-e4d1-420a-a3ed-8af850ce0e86",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "position": 3,
+      "name": "Post spreadsheet to Slack #general",
+      "role": "reporter",
+      "description": "Take the spreadsheet created in step2 and post it to the Slack #general channel with a brief summary",
+      "system_prompt": "You are a reporter tasked with sharing the spreadsheet created in step2. Post the spreadsheet to the Slack #general channel. Include a brief summary highlighting the top 3 project management tools, their key features, and pricing. Ensure the message is clear and concise.",
+      "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"api-caller\"]}"
+    },
+    {
+      "id": "681599a7-2285-4d78-91f3-b09dd164cd27",
+      "created_at": "2026-06-08T17:15:02.627Z",
+      "workflow_id": "e004c144-b745-4132-9fda-7b9560486442",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "position": 1,
+      "name": "Gather details of top 3 PM tools",
+      "role": "researcher",
+      "description": "Search the web for the top 3 project management tools and collect key details such as features, pricing, and user reviews",
+      "system_prompt": "You are a researcher. Conduct a web search to identify the top 3 project management tools. For each tool, gather key details including features, pricing plans, user ratings, and any notable pros and cons. Ensure the information is accurate and up-to-date.",
+      "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"web_search\"]}"
+    },
+    {
+      "id": "5269255a-226a-4898-baf5-243089f7ba50",
+      "created_at": "2026-06-08T17:15:02.653Z",
+      "workflow_id": "e004c144-b745-4132-9fda-7b9560486442",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "position": 2,
+      "name": "Create spreadsheet with PM tools data",
+      "role": "spreadsheet",
+      "description": "Take the results from step1 and compile them into a structured spreadsheet with columns for tool name, features, pricing, user ratings, and notes",
+      "system_prompt": "You are a spreadsheet specialist. Using the data gathered in step1, create a structured spreadsheet with the following columns: Tool Name, Key Features, Pricing Plans, User Ratings, and Notes. Ensure the data is clearly organized and formatted for easy reading.",
+      "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"spreadsheet\"]}"
+    },
+    {
+      "id": "122c81c7-40e2-41ab-95f8-b67b34aaf68c",
+      "created_at": "2026-06-08T17:15:02.686Z",
+      "workflow_id": "e004c144-b745-4132-9fda-7b9560486442",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "position": 3,
+      "name": "Post spreadsheet to Slack #general",
+      "role": "reporter",
+      "description": "Take the spreadsheet created in step2 and post it to the Slack #general channel with a brief summary of findings",
+      "system_prompt": "You are a reporter. Using the spreadsheet created in step2, post the file to the Slack #general channel. Include a brief message summarizing the top 3 project management tools and their key details. Ensure the message is clear and concise.",
+      "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"api_caller\"]}"
+    },
+    {
+      "id": "ed74c586-8e9f-42b6-af8c-51bcfcf16374",
+      "created_at": "2026-06-08T17:17:43.403Z",
+      "workflow_id": "7b82b3cf-9c83-456d-adf6-8112838e4d3a",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "position": 1,
+      "name": "Gather details on top 3 PM tools",
+      "role": "researcher",
+      "description": "Search the web for the top 3 project management tools, including features, pricing, and user reviews",
+      "system_prompt": "You are a researcher. Identify the top 3 project management tools currently available. For each tool, gather the following details: name, key features, pricing (free/paid tiers), user ratings, and a brief description of its use cases. Ensure the information is accurate and up-to-date. Return the results in a structured format (e.g., JSON or bullet points).",
+      "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"web_search\"]}"
+    },
+    {
+      "id": "a65224b8-670a-4ec9-bada-9b6cd4ce42a9",
+      "created_at": "2026-06-08T17:17:43.445Z",
+      "workflow_id": "7b82b3cf-9c83-456d-adf6-8112838e4d3a",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "position": 2,
+      "name": "Create spreadsheet of PM tools",
+      "role": "spreadsheet",
+      "description": "Take the results from step1 and compile them into a well-organized spreadsheet",
+      "system_prompt": "You are a spreadsheet specialist. Take the structured data from step1 (top 3 PM tools with features, pricing, ratings, and descriptions) and create a clean, easy-to-read spreadsheet. Include columns for: Tool Name, Key Features, Pricing, User Ratings, and Description. Format the spreadsheet for clarity and professionalism. Save the file in CSV or Excel format and provide a link or attachment for the next step.",
+      "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"spreadsheet\"]}"
+    },
+    {
+      "id": "e7cf4d7b-d908-4bbd-874e-fecc7d9348ea",
+      "created_at": "2026-06-08T17:17:43.491Z",
+      "workflow_id": "7b82b3cf-9c83-456d-adf6-8112838e4d3a",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "position": 3,
+      "name": "Post spreadsheet to Slack #general",
+      "role": "reporter",
+      "description": "Share the spreadsheet created in step2 with the team in the Slack #general channel",
+      "system_prompt": "You are a reporter. Take the spreadsheet created in step2 and post it to the Slack #general channel. Include a brief message introducing the research, such as: 'Here’s a summary of the top 3 project management tools based on recent research. Feel free to review and share your thoughts!' Attach the spreadsheet file or provide a link to it.",
+      "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"slack_api\"]}"
+    }
+  ],
+  "workflow_runs": [],
+  "workflow_steps": [],
+  "agent_heartbeats": [],
+  "memory_entities": [],
+  "memory_relationships": [],
+  "memory_decisions": [],
+  "memory_goals": [],
+  "agent_governance_rules": [],
+  "user_integrations": [],
+  "workspace_integrations": [],
+  "team_invites": [],
+  "team_members": [],
+  "teams": [],
+  "scheduled_tasks": [],
+  "action_journal": [],
+  "user_templates": [],
+  "workflow_jobs": [
+    {
+      "id": "c328d4e5-c85f-4338-a83d-98e701fb7257",
+      "run_id": "39a8da4c-f460-4f77-a481-cfc77507ddac",
+      "job_type": "workflow",
+      "payload": "{\"runId\":\"39a8da4c-f460-4f77-a481-cfc77507ddac\",\"workflowId\":\"03706d62-e4d1-420a-a3ed-8af850ce0e86\",\"tenantId\":\"00000000-0000-0000-0000-000000000000\",\"userInputs\":{},\"isLangGraph\":true}"
+    },
+    {
+      "id": "25b7f218-dc10-43a0-9fab-2fa30de188f7",
+      "run_id": "f2c9d268-4f5a-4168-92d3-2a84aceb2c41",
+      "job_type": "workflow",
+      "payload": "{\"runId\":\"f2c9d268-4f5a-4168-92d3-2a84aceb2c41\",\"workflowId\":\"e004c144-b745-4132-9fda-7b9560486442\",\"tenantId\":\"00000000-0000-0000-0000-000000000000\",\"userInputs\":{},\"isLangGraph\":true}"
+    },
+    {
+      "id": "ec152f53-130c-4b0f-8b39-a9e905972ab3",
+      "run_id": "e443cd86-1927-42df-8399-2e5ec3f36503",
+      "job_type": "workflow",
+      "payload": "{\"runId\":\"e443cd86-1927-42df-8399-2e5ec3f36503\",\"workflowId\":\"7b82b3cf-9c83-456d-adf6-8112838e4d3a\",\"tenantId\":\"00000000-0000-0000-0000-000000000000\",\"userInputs\":{},\"isLangGraph\":true}"
+    }
+  ],
+  "usage_counters": [
+    {
+      "id": "d0a28bf1-57d5-450c-8ae4-270cad89b9b9",
+      "created_at": "2026-06-08T17:10:34.600Z",
+      "user_id": "00000000-0000-0000-0000-000000000000",
+      "workspace_id": "2026-06",
+      "month": 1,
+      "tasks_run": 0
+    },
+    {
+      "id": "6dd462e1-39ff-4a8a-951a-7375a477e117",
+      "created_at": "2026-06-08T17:15:02.794Z",
+      "user_id": "00000000-0000-0000-0000-000000000000",
+      "workspace_id": "2026-06",
+      "month": 1,
+      "tasks_run": 0
+    },
+    {
+      "id": "0748d22e-5288-4c0b-972c-0b9da69208dc",
+      "created_at": "2026-06-08T17:17:43.630Z",
+      "user_id": "00000000-0000-0000-0000-000000000000",
+      "workspace_id": "2026-06",
+      "month": 1,
+      "tasks_run": 0
+    }
+  ],
+  "cryptographic_audit_ledger": [
+    {
+      "id": "1cd87250-8c3b-42e6-b49b-424223ad4a0d",
+      "created_at": "2026-06-08T17:10:34.704Z",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "run_id": "39a8da4c-f460-4f77-a481-cfc77507ddac",
+      "event_type": "TASK_ROUTED_AND_LAUNCHED",
+      "payload": "{\"prompt\":\"Research top 3 PM tools, build spreadsheet, post to Slack #general\",\"workflow_id\":\"03706d62-e4d1-420a-a3ed-8af850ce0e86\",\"estimated_steps\":3}",
+      "parent_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "current_hash": "ead911cf285c1978fad08c7df5987f38b09eed806fc1dae680559b9acbac2cde"
+    },
+    {
+      "id": "113924c7-b941-4752-87fd-ac3d8cedd843",
+      "created_at": "2026-06-08T17:15:02.849Z",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "run_id": "f2c9d268-4f5a-4168-92d3-2a84aceb2c41",
+      "event_type": "TASK_ROUTED_AND_LAUNCHED",
+      "payload": "{\"prompt\":\"Research top 3 PM tools, build spreadsheet, post to Slack #general\",\"workflow_id\":\"e004c144-b745-4132-9fda-7b9560486442\",\"estimated_steps\":3}",
+      "parent_hash": "ead911cf285c1978fad08c7df5987f38b09eed806fc1dae680559b9acbac2cde",
+      "current_hash": "5fd46deb511597f56f6e6b34f7f732fc23abb5eb89b6971957d2a85de0f4c225"
+    },
+    {
+      "id": "ab8d2046-c5fc-418d-9f09-35a991b93f07",
+      "created_at": "2026-06-08T17:17:43.703Z",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "run_id": "e443cd86-1927-42df-8399-2e5ec3f36503",
+      "event_type": "TASK_ROUTED_AND_LAUNCHED",
+      "payload": "{\"prompt\":\"Research top 3 PM tools, build spreadsheet, post to Slack #general\",\"workflow_id\":\"7b82b3cf-9c83-456d-adf6-8112838e4d3a\",\"estimated_steps\":3}",
+      "parent_hash": "5fd46deb511597f56f6e6b34f7f732fc23abb5eb89b6971957d2a85de0f4c225",
+      "current_hash": "a38913b508bf7a3e879c1f33ae2efa6d675d4921f3aa490e476fbc595b8a8236"
+    }
+  ],
+  "workspaces": [],
+  "agent_memory": [
+    {
+      "id": "cf872e25-b92b-4868-909e-d0886c44282f",
+      "created_at": "2026-06-10T09:04:10.379Z",
+      "agent_id": null,
+      "tenant_id": "4f56b7b8-d03e-41c7-96da-0030969c1499",
+      "key": "session_fact_person_david_miller",
+      "value": "Acme Partner (or acmepartner.com)",
+      "category": "entity",
+      "importance": 7,
+      "embedding": "COALESCE($4",
+      "last_accessed": "2026-06-10T09:04:12.814Z",
+      "updated_at": "2026-06-10T09:04:12.815Z"
+    },
+    {
+      "id": "c5c619c7-5d6d-4778-ad67-15b2968a6889",
+      "created_at": "2026-06-10T09:04:10.798Z",
+      "agent_id": null,
+      "tenant_id": "4f56b7b8-d03e-41c7-96da-0030969c1499",
+      "key": "session_fact_person_sarah_jenkins",
+      "value": "Acme Partner (or acmepartner.com)",
+      "category": "entity",
+      "importance": 7,
+      "embedding": "COALESCE($4",
+      "last_accessed": "2026-06-10T09:04:12.814Z",
+      "updated_at": "2026-06-10T09:04:12.815Z"
+    },
+    {
+      "id": "41d55abd-16a3-4001-9816-4bec4572e734",
+      "created_at": "2026-06-10T09:04:11.498Z",
+      "agent_id": null,
+      "tenant_id": "4f56b7b8-d03e-41c7-96da-0030969c1499",
+      "key": "session_fact_entity_acme",
+      "value": "Acme Partner (or acmepartner.com)",
+      "category": "entity",
+      "importance": 7,
+      "embedding": "COALESCE($4",
+      "last_accessed": "2026-06-10T09:04:12.814Z",
+      "updated_at": "2026-06-10T09:04:12.815Z"
+    },
+    {
+      "id": "47c3b6a1-19a8-46b4-81fc-2b1a8cd185b5",
+      "created_at": "2026-06-10T09:04:12.280Z",
+      "agent_id": null,
+      "tenant_id": "4f56b7b8-d03e-41c7-96da-0030969c1499",
+      "key": "session_fact_entity_acme_partner",
+      "value": "Acme Partner (or acmepartner.com)",
+      "category": "entity",
+      "importance": 7,
+      "embedding": "COALESCE($4",
+      "last_accessed": "2026-06-10T09:04:12.815Z",
+      "updated_at": "2026-06-10T09:04:12.815Z"
+    },
+    {
+      "id": "2658a3a0-7c38-422c-93d9-7c6aecaa54e9",
+      "created_at": "2026-06-10T09:04:12.898Z",
+      "agent_id": null,
+      "tenant_id": "4f56b7b8-d03e-41c7-96da-0030969c1499",
+      "key": "session_fact_pattern_extract_contact_details_emails",
+      "value": "User frequently requests extraction of contact details, people names, and relationship status from emails",
+      "category": "pattern",
+      "importance": 8,
+      "embedding": "[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]"
+    },
+    {
+      "id": "6bbb4920-bd8d-49a2-abd5-92d8d6d2d626",
+      "created_at": "2026-06-10T09:04:13.214Z",
+      "agent_id": null,
+      "tenant_id": "4f56b7b8-d03e-41c7-96da-0030969c1499",
+      "key": "session_fact_preference_email_data_extraction",
+      "value": "User prefers structured extraction of data from emails (e.g., names, contact details, relationship status)",
+      "category": "preference",
+      "importance": 7,
+      "embedding": "[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]"
+    },
+    {
+      "id": "6d89652a-b8f0-45ed-bc25-c9b1fdd244c9",
+      "created_at": "2026-06-10T09:04:13.311Z",
+      "agent_id": null,
+      "tenant_id": "4f56b7b8-d03e-41c7-96da-0030969c1499",
+      "key": "session_fact_pattern_email_contact_extraction",
+      "value": "User regularly requests extraction of contact details, people names, and relationship status from emails",
+      "category": "pattern",
+      "importance": 8,
+      "embedding": "[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]"
+    },
+    {
+      "id": "6e9a4a07-f1a9-4787-9799-96bee1b8cd9f",
+      "created_at": "2026-06-10T09:04:13.612Z",
+      "agent_id": null,
+      "tenant_id": "4f56b7b8-d03e-41c7-96da-0030969c1499",
+      "key": "session_fact_preference_structured_email_data",
+      "value": "User prefers structured extraction of email metadata (e.g., names, entities, timestamps)",
+      "category": "preference",
+      "importance": 7,
+      "embedding": "[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]"
+    }
+  ]
+}

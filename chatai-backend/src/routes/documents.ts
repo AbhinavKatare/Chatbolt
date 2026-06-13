@@ -22,7 +22,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: (parseInt(process.env.MAX_FILE_SIZE_MB || '50')) * 1024 * 1024 },
+  limits: { fileSize: 25 * 1024 * 1024 }, // Enforce 25MB limit
   fileFilter: (_, file, cb) => {
     const allowed = ['.pdf', '.txt', '.csv', '.docx', '.md']
     const ext = path.extname(file.originalname).toLowerCase()
@@ -30,6 +30,18 @@ const upload = multer({
     else cb(new Error(`File type ${ext} not allowed. Use: ${allowed.join(', ')}`))
   },
 })
+
+function uploadMiddleware(req: Request, res: Response, next: any) {
+  upload.single('file')(req, res, (err: any) => {
+    if (err) {
+      if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'File size exceeds the 25MB limit. Please upload a smaller file.' })
+      }
+      return res.status(400).json({ error: err.message })
+    }
+    next()
+  })
+}
 
 // Verify agent belongs to tenant
 async function getAgentForTenant(agentId: string, tenantId: string) {
@@ -50,7 +62,7 @@ router.get('/:agentId/documents', authMiddleware, async (req: Request, res: Resp
 })
 
 // POST /agents/:agentId/documents/upload
-router.post('/:agentId/documents/upload', authMiddleware, upload.single('file'), async (req: Request, res: Response) => {
+router.post('/:agentId/documents/upload', authMiddleware, uploadMiddleware, async (req: Request, res: Response) => {
   try {
     const agent = await getAgentForTenant(req.params.agentId, req.tenantId!)
     if (!agent) return res.status(404).json({ error: 'Agent not found' })

@@ -1,3 +1,4 @@
+import { logger } from '../services/logger.service';
 import nodemailer from 'nodemailer'
 import fs from 'fs'
 import Papa from 'papaparse'
@@ -29,8 +30,8 @@ export async function runSendEmail({
     port: parseInt(process.env.SMTP_PORT || '587'),
     secure: process.env.SMTP_PORT === '465',
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
+      user: (process.env.SMTP_USER || '').trim(),
+      pass: (process.env.SMTP_PASSWORD || process.env.SMTP_PASS || '').trim()
     }
   })
 
@@ -94,7 +95,22 @@ export async function loadRecipientsFromCsv(filePath: string, emailColumn = 'ema
 }
 
 export async function loadRecipientsFromSheet(sheetId: string, range: string, emailIndex = 0, apiKey?: string) {
-  const sheets = google.sheets({ version: 'v4', auth: apiKey || process.env.GOOGLE_API_KEY })
+  let auth: any = apiKey || (process.env.GOOGLE_API_KEY || '').trim()
+  
+  const saJson = (process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '').trim()
+  if (!apiKey && saJson && saJson !== '{}') {
+    try {
+      logger.info('[Google Sheets: Email Tool] Using Service Account Authentication')
+      auth = new google.auth.GoogleAuth({
+        credentials: JSON.parse(saJson),
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      })
+    } catch (err: any) {
+      console.error('[Google Sheets: Email Tool] Service Account auth failed:', err.message)
+    }
+  }
+
+  const sheets = google.sheets({ version: 'v4', auth })
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetId,
     range: range || 'Sheet1!A:B',

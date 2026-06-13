@@ -1,3 +1,4 @@
+import { logger } from './logger.service';
 import { google } from 'googleapis'
 import { query, queryOne } from '../db'
 
@@ -47,7 +48,7 @@ export async function syncLeadToSheet(leadId: string) {
       requestBody: { values }
     })
 
-    console.log(`✅ Lead ${leadId} synced to Google Sheet for tenant ${lead.tenant_name}`)
+    logger.info(`✅ Lead ${leadId} synced to Google Sheet for tenant ${lead.tenant_name}`)
   } catch (err) {
     console.error('Failed to sync lead to Google Sheets:', err)
     throw err

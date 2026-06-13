@@ -7,22 +7,71 @@ import { requireCredits } from '../middleware/credits.middleware'
 import { streamChat, getAnswer } from '../services/rag.service'
 import { deductCredit } from '../services/credits.service'
 import { Conversation, Message } from '../types'
+import { classifyPrompt, handleExecuteV2 } from '../services/execution-router.service'
+import { taskRateLimiter } from '../middleware/rate-limit'
 
 const router = Router()
+
+// Unified execution router endpoint POST /chat/api/v2/execute
+router.post('/api/v2/execute', authMiddleware, taskRateLimiter, requireCredits, async (req: Request, res: Response) => {
+  try {
+    const { prompt, session_id, history = [], inputs = {} } = z.object({
+      prompt: z.string().min(1).max(2000),
+      session_id: z.string().optional(),
+      history: z.array(z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string(),
+      })).optional().default([]),
+      inputs: z.record(z.any()).optional().default({}),
+    }).parse(req.body)
+
+    await handleExecuteV2({
+      prompt,
+      tenantId: req.tenantId!,
+      sessionId: session_id,
+      inputs,
+      history: history as any,
+      res,
+      reqCloseHandler: (callback) => {
+        req.on('close', callback)
+      }
+    })
+  } catch (err: any) {
+    if (!res.headersSent) {
+      if (err instanceof z.ZodError) return res.status(400).json({ error: 'Validation error', details: err.errors })
+      res.status(500).json({ error: err.message })
+    }
+  }
+})
 
 // ─── Internal (dashboard preview) ─────────────────────────────────
 
 // POST /chat/:agentId/stream  — SSE streaming
 router.post('/:agentId/stream', authMiddleware, requireCredits, async (req: Request, res: Response) => {
   try {
-    const { message, session_id, history = [] } = z.object({
+    const { message, session_id, history = [], inputs = {} } = z.object({
       message: z.string().min(1).max(2000),
       session_id: z.string().optional(),
       history: z.array(z.object({
         role: z.enum(['user', 'assistant']),
         content: z.string(),
       })).optional().default([]),
+      inputs: z.record(z.any()).optional().default({}),
     }).parse(req.body)
+
+    const intent = await classifyPrompt(message)
+    if (intent.type === 'task') {
+      await handleExecuteV2({
+        prompt: message,
+        tenantId: req.tenantId!,
+        inputs,
+        res,
+        reqCloseHandler: (callback) => {
+          req.on('close', callback)
+        }
+      })
+      return
+    }
 
     const sessionId = session_id || uuidv4()
 
@@ -53,7 +102,7 @@ router.post('/:agentId/stream', authMiddleware, requireCredits, async (req: Requ
       tenantId: req.tenantId!,
       userMessage: message,
       conversationId: conversation.id,
-      history,
+      history: history as any,
       res,
     })
 
@@ -116,7 +165,7 @@ router.post('/:agentId/message', authMiddleware, requireCredits, async (req: Req
     )
 
     const { answer, sources, escalate } = await getAnswer(
-      req.params.agentId, req.tenantId!, message, history
+      req.params.agentId, req.tenantId!, message, history as any
     )
 
     await query(
@@ -176,7 +225,7 @@ router.post('/widget/:agentId/stream', apiKeyMiddleware, requireCredits, async (
       tenantId: req.tenantId!,
       userMessage: message,
       conversationId: conversation.id,
-      history,
+      history: history as any,
       res,
     })
 

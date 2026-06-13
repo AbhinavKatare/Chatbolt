@@ -1,3 +1,4 @@
+import { logger } from '../services/logger.service';
 import { Client } from 'pg';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -7,7 +8,7 @@ async function run() {
   await client.connect();
   try {
     await client.query('ALTER TABLE tenants ADD COLUMN IF NOT EXISTS supabase_user_id UUID UNIQUE');
-    console.log('Added supabase_user_id to tenants');
+    logger.info('Added supabase_user_id to tenants');
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS daily_reports (
@@ -19,7 +20,7 @@ async function run() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       )
     `);
-    console.log('Ensured daily_reports table exists');
+    logger.info('Ensured daily_reports table exists');
   } catch (e) {
     console.error(e);
   } finally {

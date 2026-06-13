@@ -1,9 +1,10 @@
+import { logger } from './logger.service';
 import { query, queryOne } from '../db'
 import { Document } from '../types'
 import fs from 'fs'
 import path from 'path'
 import axios from 'axios'
-import { nvidia } from './rag.service'
+import { embedBatch as baseEmbedBatch } from '../agents/base.agent'
 
 // ─── Text extraction ───────────────────────────────────────────────
 
@@ -101,15 +102,8 @@ function chunkText(text: string, chunkSize = 512, overlap = 64): string[] {
   return chunks
 }
 
-// ─── Embedding ────────────────────────────────────────────────────
-
 async function embedBatch(texts: string[]): Promise<number[][]> {
-  const response = await nvidia.embeddings.create({
-    model: 'nvidia/nv-embedqa-e5-v5',
-    input: texts,
-    encoding_format: 'float'
-  })
-  return response.data.map((d: any) => d.embedding)
+  return baseEmbedBatch(texts)
 }
 
 function chunkArray<T>(arr: T[], size: number): T[][] {
@@ -192,7 +186,7 @@ export async function ingestDocument(documentId: string): Promise<void> {
       [totalStored, documentId]
     )
 
-    console.log(`✅ Ingested ${doc.filename}: ${totalStored} chunks`)
+    logger.info(`✅ Ingested ${doc.filename}: ${totalStored} chunks`)
   } catch (err: any) {
     await query(
       "UPDATE documents SET status = 'failed', error_message = $1, updated_at = NOW() WHERE id = $2",

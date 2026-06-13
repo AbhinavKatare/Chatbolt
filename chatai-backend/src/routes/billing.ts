@@ -1,69 +1,88 @@
+import { logger } from '../services/logger.service'
 import { Router, Request, Response } from 'express'
 import Stripe from 'stripe'
-import Razorpay from 'razorpay'
-import crypto from 'crypto'
-import { query, queryOne } from '../db'
 import { authMiddleware } from '../middleware/auth.middleware'
-import { refillCredits, PLAN_CREDITS } from '../services/credits.service'
+import { billingService } from '../services/billing.service'
 
 const router = Router()
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2023-10-16' })
-
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || '',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || '',
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'mock_key', {
+  apiVersion: '2023-10-16'
 })
 
-const PRICE_IDS: Record<string, string> = {
-  pro: process.env.STRIPE_PRICE_PRO || '',
-  premium: process.env.STRIPE_PRICE_PREMIUM || '',
-}
-
-const PRICE_TO_PLAN: Record<string, string> = Object.fromEntries(
-  Object.entries(PRICE_IDS).map(([k, v]) => [v, k])
-)
-
-// GET /billing/plans
-router.get('/plans', (_, res) => {
-  res.json({
-    plans: [
-      { id: 'pro', name: 'Pro', price_monthly: 25, inr_monthly: 2100, credits: 2500, agents: 3 },
-      { id: 'premium', name: 'Premium', price_monthly: 59, inr_monthly: 4900, credits: 10000, agents: 10 },
-    ]
-  })
+// GET /billing/plan — returns current plan details
+router.get('/plan', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const plan = await billingService.getUserPlan(req.tenantId!)
+    res.json({ plan })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
 })
 
-// POST /billing/checkout — create Stripe checkout session
+// GET /billing/subscription — returns current subscription details
+router.get('/subscription', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { queryOne } = await import('../db')
+    const subscription = await queryOne(
+      `SELECT * FROM subscriptions 
+       WHERE user_id = $1 AND status = 'active' AND current_period_end > NOW() 
+       ORDER BY created_at DESC LIMIT 1`,
+      [req.tenantId!]
+    )
+    const plan = req.tenant?.plan || 'free'
+    res.json({ subscription, plan })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// GET /billing/usage — returns current usage counters
+router.get('/usage', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.tenantId!;
+    const tasks = await billingService.checkLimit(tenantId, 'tasks')
+    const apiCalls = await billingService.checkLimit(tenantId, 'api_calls')
+    const automations = await billingService.checkLimit(tenantId, 'automations')
+    const integrations = await billingService.checkLimit(tenantId, 'integrations')
+    const teamMembers = await billingService.checkLimit(tenantId, 'team_members')
+
+    res.json({
+      tasks,
+      api_calls: apiCalls,
+      automations,
+      integrations,
+      team_members: teamMembers
+    })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /billing/checkout — create checkout session
 router.post('/checkout', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { plan, interval = 'month' } = req.body
-    if (!PRICE_IDS[plan]) return res.status(400).json({ error: 'Invalid plan' })
+    const { plan, interval = 'monthly' } = req.body
+    if (plan !== 'pro' && plan !== 'team') {
+      return res.status(400).json({ error: 'Invalid plan' })
+    }
+    const url = await billingService.createCheckoutSession(req.tenantId!, plan, interval)
+    res.json({ url })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
 
+// POST /billing/portal — portal redirect
+router.post('/portal', authMiddleware, async (req: Request, res: Response) => {
+  try {
     const tenant = req.tenant!
-    let customerId = tenant.stripe_customer_id
-
-    // Create Stripe customer if needed
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: tenant.email,
-        name: tenant.name,
-        metadata: { tenant_id: tenant.id },
-      })
-      customerId = customer.id
-      await query('UPDATE tenants SET stripe_customer_id = $1 WHERE id = $2', [customerId, tenant.id])
+    if (!tenant.stripe_customer_id) {
+      return res.status(400).json({ error: 'No active subscription found.' })
     }
 
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      mode: 'subscription',
-      payment_method_types: ['card'],
-      line_items: [{ price: PRICE_IDS[plan], quantity: 1 }],
-      subscription_data: {
-        metadata: { tenant_id: tenant.id, plan },
-      },
-      success_url: `${process.env.FRONTEND_URL}/dashboard?checkout=success&plan=${plan}`,
-      cancel_url: `${process.env.FRONTEND_URL}/pricing?checkout=cancelled`,
-      metadata: { tenant_id: tenant.id, plan },
+    const session = await stripe.billingPortal.sessions.create({
+      customer: tenant.stripe_customer_id,
+      return_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard/settings/billing`,
     })
 
     res.json({ url: session.url })
@@ -72,220 +91,67 @@ router.post('/checkout', authMiddleware, async (req: Request, res: Response) => 
   }
 })
 
-// POST /billing/razorpay/checkout
-router.post('/razorpay/checkout', authMiddleware, async (req: Request, res: Response) => {
+// GET /billing/annual-nudge-check — check if user is eligible for annual nudge
+router.get('/annual-nudge-check', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { plan } = req.body
-    const tenant = req.tenant!
-    const plansInr: Record<string, number> = { pro: 2100, premium: 4900 }
-    
-    if (!plansInr[plan]) return res.status(400).json({ error: 'Invalid plan' })
-
-    const options = {
-      amount: plansInr[plan] * 100, // paise
-      currency: 'INR',
-      receipt: `rcpt_${tenant.id.slice(0, 8)}`,
-      notes: { tenant_id: tenant.id, plan },
-    }
-
-    const order = await razorpay.orders.create(options)
-    res.json({ orderId: order.id, amount: options.amount, key: process.env.RAZORPAY_KEY_ID })
+    const eligible = await billingService.checkAnnualNudgeEligibility(req.tenantId!)
+    res.json({ eligible })
   } catch (err: any) {
     res.status(500).json({ error: err.message })
   }
 })
 
-// POST /billing/razorpay/verify
-router.post('/razorpay/verify', authMiddleware, async (req: Request, res: Response) => {
+// POST /billing/annual-nudge-dismiss — mark annual nudge as sent
+router.post('/annual-nudge-dismiss', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, plan } = req.body
-    const tenantId = req.tenantId!
-
-    const generatedSignature = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
-      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-      .digest('hex')
-
-    if (generatedSignature !== razorpay_signature) {
-      return res.status(400).json({ error: 'Invalid signature' })
-    }
-
-    const credits = PLAN_CREDITS[plan] || 0
+    const { query } = await import('../db')
     await query(
-      `UPDATE tenants SET plan = $1, credits_monthly = $2, credits_remaining = $2 WHERE id = $3`,
-      [plan, credits, tenantId]
+      `UPDATE subscriptions SET annual_nudge_sent = NOW() 
+       WHERE user_id = $1 AND plan = 'pro' AND status = 'active'`,
+      [req.tenantId!]
     )
-
     res.json({ success: true })
   } catch (err: any) {
     res.status(500).json({ error: err.message })
   }
 })
 
-// POST /billing/portal — customer portal to manage subscription
-router.post('/portal', authMiddleware, async (req: Request, res: Response) => {
+// POST /billing/overage/toggle — enable or disable pay-as-you-go overage billing
+router.post('/overage/toggle', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const tenant = req.tenant!
-    if (!tenant.stripe_customer_id) {
-      return res.status(400).json({ error: 'No active subscription' })
-    }
-
-    const session = await stripe.billingPortal.sessions.create({
-      customer: tenant.stripe_customer_id,
-      return_url: `${process.env.FRONTEND_URL}/dashboard/billing`,
-    })
-
-    res.json({ url: session.url })
+    const { enabled } = req.body
+    const { query } = await import('../db')
+    await query(
+      `UPDATE subscriptions SET overage_enabled = $1 WHERE user_id = $2 AND status = 'active'`,
+      [enabled, req.tenantId!]
+    )
+    res.json({ success: true, overage_enabled: enabled })
   } catch (err: any) {
     res.status(500).json({ error: err.message })
   }
 })
 
-// GET /billing/subscription
-router.get('/subscription', authMiddleware, async (req: Request, res: Response) => {
-  const tenant = req.tenant!
-  if (!tenant.stripe_customer_id || !tenant.stripe_subscription_id) {
-    return res.json({ subscription: null, plan: tenant.plan || 'none' })
-  }
-
-  try {
-    const sub = await stripe.subscriptions.retrieve(tenant.stripe_subscription_id)
-    res.json({
-      subscription: {
-        id: sub.id,
-        status: sub.status,
-        current_period_end: new Date(sub.current_period_end * 1000),
-        cancel_at_period_end: sub.cancel_at_period_end,
-        plan: tenant.plan,
-      }
-    })
-  } catch {
-    res.json({ subscription: null, plan: tenant.plan })
-  }
-})
-
-// GET /billing/credits
-router.get('/credits', authMiddleware, async (req: Request, res: Response) => {
-  const tenant = req.tenant!
-  const history = await query(
-    `SELECT * FROM credit_transactions WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 50`,
-    [req.tenantId]
-  )
-  res.json({
-    credits_remaining: tenant.credits_remaining,
-    credits_monthly: tenant.credits_monthly,
-    plan: tenant.plan,
-    history,
-  })
-})
-
-// POST /billing/credits/recharge — manual top-up
-router.post('/credits/recharge', authMiddleware, async (req: Request, res: Response) => {
-  try {
-    const { amount = 1000 } = req.body
-    const validAmounts = [1000, 5000, 10000]
-    if (!validAmounts.includes(amount)) {
-      return res.status(400).json({ error: 'Invalid amount. Choose: 1000, 5000, or 10000' })
-    }
-
-    const tenant = req.tenant!
-    const pricePerCredit = 0.04 // $40 per 1000
-    const totalCents = Math.round((amount / 1000) * 40 * 100)
-
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: totalCents,
-      currency: 'usd',
-      customer: tenant.stripe_customer_id || undefined,
-      metadata: { tenant_id: tenant.id, credit_amount: amount.toString(), type: 'credit_recharge' },
-    })
-
-    res.json({ client_secret: paymentIntent.client_secret, amount, price_usd: totalCents / 100 })
-  } catch (err: any) {
-    res.status(500).json({ error: err.message })
-  }
-})
-
-// POST /billing/webhook — Stripe events
+// POST /billing/webhook — verified signature webhook receiver
 router.post('/webhook', async (req: Request, res: Response) => {
   const sig = req.headers['stripe-signature'] as string
   let event: Stripe.Event
 
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET!)
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET || 'mock_webhook_secret'
+    )
   } catch (err: any) {
-    console.error('Webhook signature verification failed:', err.message)
+    logger.warn(`[Billing Webhook] Signature verification failed: ${err.message}`)
     return res.status(400).json({ error: 'Invalid signature' })
   }
 
   try {
-    switch (event.type) {
-      case 'customer.subscription.created':
-      case 'customer.subscription.updated': {
-        const sub = event.data.object as Stripe.Subscription
-        const tenantId = sub.metadata.tenant_id
-        if (!tenantId) break
-
-        const priceId = sub.items.data[0]?.price?.id
-        const plan = PRICE_TO_PLAN[priceId] || 'none'
-        const credits = PLAN_CREDITS[plan] || 0
-
-        await query(
-          `UPDATE tenants SET plan = $1, credits_monthly = $2, stripe_subscription_id = $3 WHERE id = $4`,
-          [plan, credits, sub.id, tenantId]
-        )
-        console.log(`✅ Subscription updated: tenant ${tenantId} -> ${plan}`)
-        break
-      }
-
-      case 'invoice.payment_succeeded': {
-        const invoice = event.data.object as Stripe.Invoice
-        const customerId = invoice.customer as string
-        const tenant = await queryOne<{ id: string; credits_monthly: number; plan: string }>(
-          'SELECT id, credits_monthly, plan FROM tenants WHERE stripe_customer_id = $1',
-          [customerId]
-        )
-        if (!tenant) break
-
-        // Refill monthly credits on renewal
-        if (invoice.billing_reason === 'subscription_cycle') {
-          const credits = PLAN_CREDITS[tenant.plan] || 0
-          await query('UPDATE tenants SET credits_remaining = $1 WHERE id = $2', [credits, tenant.id])
-          await refillCredits(tenant.id, credits, 'recharge', `Monthly renewal — ${tenant.plan} plan`)
-          console.log(`✅ Credits refilled: tenant ${tenant.id} (${credits} credits)`)
-        }
-        break
-      }
-
-      case 'customer.subscription.deleted': {
-        const sub = event.data.object as Stripe.Subscription
-        const tenantId = sub.metadata.tenant_id
-        if (!tenantId) break
-
-        await query(
-          `UPDATE tenants SET plan = 'none', credits_monthly = 0, stripe_subscription_id = NULL WHERE id = $1`,
-          [tenantId]
-        )
-        console.log(`⚠️ Subscription cancelled: tenant ${tenantId} downgraded to none`)
-        break
-      }
-
-      case 'payment_intent.succeeded': {
-        const pi = event.data.object as Stripe.PaymentIntent
-        if (pi.metadata.type === 'credit_recharge') {
-          const tenantId = pi.metadata.tenant_id
-          const amount = parseInt(pi.metadata.credit_amount || '0')
-          if (tenantId && amount > 0) {
-            await refillCredits(tenantId, amount, 'recharge', `Manual recharge: ${amount} credits`)
-            console.log(`✅ Credits recharged: tenant ${tenantId} (+${amount})`)
-          }
-        }
-        break
-      }
-    }
-
+    await billingService.handleWebhook(event)
     res.json({ received: true })
   } catch (err: any) {
-    console.error('Webhook handler error:', err)
+    logger.error(`[Billing Webhook] Handler failed: ${err.message}`)
     res.status(500).json({ error: 'Webhook processing failed' })
   }
 })

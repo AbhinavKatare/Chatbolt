@@ -9,6 +9,10 @@ export interface Tenant {
   stripe_subscription_id?: string
   supabase_user_id?: string
   is_active: boolean
+  is_admin?: boolean
+  user_details?: string
+  user_purpose?: string
+  notification_preferences?: string
   created_at: Date
 }
 
@@ -50,6 +54,22 @@ export interface WorkflowAgent {
     tools_needed: string[]
     knowledge_base_ids?: string[]
     api_vault_ids?: string[]
+    validation_requirements?: {
+      schema_check?: boolean
+      required_fields?: string[]
+      semantic_check?: boolean
+    }
+    retry_policy?: {
+      max_retries?: number
+    }
+    timeout_policy?: {
+      timeout_sec?: number
+    }
+    memory_requirements?: {
+      working_memory?: boolean
+      semantic_memory?: boolean
+      episodic_memory?: boolean
+    }
   }
   inputs_from_user: WorkflowInputDefinition[]
   inputs_from_previous: string[]

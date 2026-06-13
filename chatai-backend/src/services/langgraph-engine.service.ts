@@ -1,19 +1,30 @@
+import { logger } from './logger.service';
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { ChatOpenAI } from "@langchain/openai";
 import { ALL_TOOLS } from "../tools/langchain-tools";
+import { getArtifactTools } from "../tools/artifact-tools";
 import { db } from "../db";
 import { runEmitter } from "./sse.service";
 import { WorkflowAgent, AgentOutput } from "../types";
+import { transitionWorkflowRun } from "./workflow-state";
+import { outcomeEngineService } from './outcome-engine.service';
+import { executiveSwarmService } from './executive-swarm.service';
+import { agentGovernanceService } from './agent-governance.service';
+import { costIntelligenceService } from './cost-intelligence.service';
+import { optimizationEngineService } from './optimization-engine.service';
+import { supervisorService } from './supervisor.service';
+
+import { cleanEnvVar } from "../agents/base.agent";
 
 // Setup LLM using Mistral AI or Hugging Face Router
 // IMPORTANT: @langchain/openai reads OPENAI_API_KEY from process.env internally,
 // so we must inject the correct key before creating the ChatOpenAI instance.
 function getLLM(_modelName?: string) {
-  const mistralKey = process.env.MISTRAL_API_KEY || process.env.mistral_api_key;
-  const hfKey = process.env.HF_API_KEY || process.env.HUGGINGFACE_API_KEY;
+  const mistralKey = cleanEnvVar('MISTRAL_API_KEY') || cleanEnvVar('mistral_api_key');
+  const hfKey = cleanEnvVar('HUGGINGFACE_API_KEY') || cleanEnvVar('HF_API_KEY');
 
   if (mistralKey) {
-    console.log("Using Mistral AI as primary LLM (Mistral-Large)...");
+    logger.info("Using Mistral AI as primary LLM (Mistral-Large)...");
     process.env.OPENAI_API_KEY = mistralKey;
     return new ChatOpenAI({
       modelName: 'mistral-large-latest',
@@ -27,7 +38,7 @@ function getLLM(_modelName?: string) {
 
   if (!hfKey) throw new Error('No LLM API keys found (MISTRAL_API_KEY or HF_API_KEY)');
 
-  console.log("Using Hugging Face Router as primary LLM...");
+  logger.info("Using Hugging Face Router as primary LLM...");
   process.env.OPENAI_API_KEY = hfKey;
   return new ChatOpenAI({
     modelName: 'Qwen/WebWorld-8B:featherless-ai',
@@ -39,12 +50,37 @@ function getLLM(_modelName?: string) {
   });
 }
 
+function pruneContext(previousOutputs: Record<string, AgentOutput>): string {
+  const serialized = JSON.stringify(previousOutputs);
+  if (serialized.length <= 8000) {
+    return serialized;
+  }
+  // If too large, prune by keeping only standard fields and truncating heavy data strings
+  const pruned: Record<string, Partial<AgentOutput>> = {};
+  for (const [key, value] of Object.entries(previousOutputs)) {
+    pruned[key] = {
+      success: value.success,
+      summary: value.summary,
+      output_type: value.output_type,
+      confidence: value.confidence,
+      error: value.error,
+      data: value.data
+        ? typeof value.data === "string"
+          ? value.data.slice(0, 1000) + "... [truncated due to context limit]"
+          : { content: (value.data as any).content?.slice?.(0, 1000) }
+        : undefined,
+    };
+  }
+  return JSON.stringify(pruned);
+}
+
 export async function executeWorkflowLangGraph(
   workflowId: string,
   tenantId: string,
-  userInputs: any
+  userInputs: any,
+  resumeRunId?: string
 ): Promise<{ run_id: string }> {
-  console.log(`🚀 Starting LangGraph workflow ${workflowId} for tenant ${tenantId}`);
+  logger.info(`🚀 Starting LangGraph workflow ${workflowId} for tenant ${tenantId} (Resume: ${resumeRunId || 'no'})`);
 
   // 1. Load workflow and agents (with fallback for demo/system workflows)
   let { rows: workflows } = await db.query(
@@ -70,32 +106,81 @@ export async function executeWorkflowLangGraph(
   );
   if (agents.length === 0) throw new Error("No agents found in workflow");
 
-  // 2. Create workflow run BEFORE background task
-  const { rows: runs } = await db.query(
-    `INSERT INTO workflow_runs 
-     (workflow_id, tenant_id, input_data, status, started_at) 
-     VALUES ($1, $2, $3, 'running', NOW()) 
-     RETURNING id`,
-    [workflowId, tenantId, JSON.stringify(userInputs)]
-  );
-  const runId = runs[0].id;
+  let runId: string;
+  let finalInputs = userInputs;
+
+  if (resumeRunId) {
+    runId = resumeRunId;
+    const { rows: runs } = await db.query('SELECT input_data FROM workflow_runs WHERE id = $1', [resumeRunId]);
+    if (runs.length === 0) throw new Error(`Run ${resumeRunId} to resume not found`);
+    if (runs[0].input_data) {
+      finalInputs = typeof runs[0].input_data === 'string' ? JSON.parse(runs[0].input_data) : runs[0].input_data;
+    }
+  } else {
+    // 2. Create workflow run BEFORE background task
+    const { rows: runs } = await db.query(
+      `INSERT INTO workflow_runs 
+       (workflow_id, tenant_id, input_data, status, started_at) 
+       VALUES ($1, $2, $3, 'running', NOW()) 
+       RETURNING id`,
+      [workflowId, tenantId, JSON.stringify(userInputs)]
+    );
+    runId = runs[0].id;
+  }
 
   // 3. Run execution in background
   setImmediate(async () => {
-    runEmitter.emitEvent(runId, "workflow_start", {
-      workflowId,
-      name: workflow.name,
-      total_agents: agents.length,
-    });
-
     const previousOutputs: Record<string, AgentOutput> = {};
     const startTime = Date.now();
     let totalCredits = 0;
 
     try {
+      // 1. Transition to PLANNING stage
+      await transitionWorkflowRun(runId, 'PLANNING', { workflowId });
+      
+      // ── C-Suite Swarm Approval & Goal Decomposition ──
+      const goalStr = workflow.original_prompt || 'Autonomous Outcome Task';
+      const swarmApproval = await executiveSwarmService.coordinateExecutiveSwarm(goalStr, tenantId);
+      
+      const structuredGoal = await outcomeEngineService.decomposeGoal(goalStr, tenantId);
+      const goalId = await outcomeEngineService.createGoalInDb(structuredGoal, tenantId);
+      
+      logger.info(`[LangGraph] Goal ${goalId} and milestones established for outcome execution.`);
+      await new Promise(r => setTimeout(r, 800)); // Short delay for planning trace
+
+      // 2. Transition to EXECUTING stage
+      await transitionWorkflowRun(runId, 'EXECUTING', { workflowId });
+
       // Execute each agent sequentially but using a full ReAct loop internally
       for (const agent of agents as WorkflowAgent[]) {
         const stepStartTime = Date.now();
+
+        // Check if step is already completed (checkpoint resume)
+        const stepCheck = await db.query(
+          "SELECT id, status, output_data FROM workflow_steps WHERE run_id = $1 AND agent_id = $2",
+          [runId, agent.id]
+        );
+        if (stepCheck.rows.length > 0 && stepCheck.rows[0].status === 'completed') {
+          logger.info(`[LangGraph] Resuming run ${runId}: Skipping completed step ${agent.position} (${agent.name})`);
+          const stepOutput = stepCheck.rows[0].output_data as AgentOutput;
+          previousOutputs[agent.name] = stepOutput;
+          previousOutputs[`agent_${agent.position}`] = stepOutput;
+          previousOutputs[agent.role] = stepOutput;
+          totalCredits += 1;
+          continue;
+        }
+
+        // Cancellation checkpoint
+        const checkRun = await db.query('SELECT status FROM workflow_runs WHERE id = $1', [runId]);
+        const currentStatus = (checkRun.rows[0]?.status || 'executing').toLowerCase();
+        if (currentStatus === 'cancelled') {
+          logger.info(`[LangGraph] Run ${runId} was cancelled by user. Aborting step ${agent.position}.`);
+          await db.query(
+            "UPDATE workflow_steps SET status = 'cancelled', completed_at = NOW() WHERE run_id = $1 AND status = 'pending'",
+            [runId]
+          );
+          return;
+        }
 
         runEmitter.emitEvent(runId, "agent_start", {
           agentId: agent.id,
@@ -106,6 +191,9 @@ export async function executeWorkflowLangGraph(
           message: `${agent.name} is reasoning with LangGraph...`,
         });
 
+        const progressVal = Math.round((agent.position / (agents.length + 1)) * 90);
+        runEmitter.emitEvent(runId, 'workflow_progress', { progress: progressVal }, workflowId);
+
         const { rows: steps } = await db.query(
           `INSERT INTO workflow_steps 
            (run_id, agent_id, step_number, status, input_data, started_at)
@@ -115,7 +203,7 @@ export async function executeWorkflowLangGraph(
             runId,
             agent.id,
             agent.position,
-            JSON.stringify({ user_inputs: userInputs, previous_outputs: previousOutputs }),
+            JSON.stringify({ user_inputs: finalInputs, previous_outputs: previousOutputs }),
           ]
         );
         const stepId = steps[0].id;
@@ -123,9 +211,9 @@ export async function executeWorkflowLangGraph(
         // Initialize the ReAct agent
         const llm = getLLM(agent.config?.model || "");
         
-        // Combine system prompt, task, and previous context
-        const contextStr = JSON.stringify(previousOutputs);
-        const inputStr = JSON.stringify(userInputs);
+        // Combine system prompt, task, and previous context (with pruning)
+        const contextStr = pruneContext(previousOutputs);
+        const inputStr = JSON.stringify(finalInputs);
         
         const systemMessage = `You are a specialized AI agent named "${agent.name}" (Role: ${agent.role}).
         Your System Prompt: ${agent.system_prompt}
@@ -137,9 +225,12 @@ export async function executeWorkflowLangGraph(
         
         You have access to tools. Use them to accomplish your task. When you are done, provide a final comprehensive answer.`;
 
+        const artifactTools = getArtifactTools(tenantId, workflowId, runId);
+        const dynamicTools = [...ALL_TOOLS, ...artifactTools];
+
         const reactAgent = createReactAgent({
           llm,
-          tools: ALL_TOOLS,
+          tools: dynamicTools,
           messageModifier: systemMessage,
         });
 
@@ -148,22 +239,49 @@ export async function executeWorkflowLangGraph(
         const toolsUsed: string[] = [];
 
         try {
-          const stream = await reactAgent.stream(
-            { messages: [["user", "Execute your task and provide the final output."]] },
-            { streamMode: "values" }
+          // Transition to TOOL_RUNNING for the duration of reactAgent invocation
+          await transitionWorkflowRun(runId, 'TOOL_RUNNING', { workflowId });
+
+          // 180 seconds Step Timeout Guard
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`Timeout: Agent ${agent.name} exceeded maximum limit of 180s`)), 180000)
           );
 
-          for await (const chunk of stream) {
-            const lastMessage = chunk.messages[chunk.messages.length - 1];
-            if (lastMessage._getType() === "ai" && (lastMessage as any).tool_calls?.length > 0) {
-              const tc = (lastMessage as any).tool_calls[0];
-              runEmitter.emitEvent(runId, "agent_progress", { message: `Calling tool: ${tc.name}` });
-              if (!toolsUsed.includes(tc.name)) toolsUsed.push(tc.name);
+          const streamPromise = (async () => {
+            const stream = await reactAgent.stream(
+              { messages: [["user", "Execute your task and provide the final output."]] },
+              { streamMode: "values", recursionLimit: 10 } // Enforce max recursion depth cap of 10 loops
+            );
+
+            for await (const chunk of stream) {
+              // Check cancellation inside streaming loop
+              const innerCheck = await db.query('SELECT status FROM workflow_runs WHERE id = $1', [runId]);
+              if ((innerCheck.rows[0]?.status || '').toLowerCase() === 'cancelled') {
+                throw new Error('Workflow cancelled by user');
+              }
+
+              const chunkObj = chunk as any;
+              const lastMessage = chunkObj.messages?.[chunkObj.messages.length - 1];
+              if (lastMessage) {
+                if (lastMessage._getType() === "ai" && (lastMessage as any).tool_calls?.length > 0) {
+                  const tc = (lastMessage as any).tool_calls[0];
+                  runEmitter.emitEvent(runId, "agent_progress", { message: `Calling tool: ${tc.name}` });
+                  if (!toolsUsed.includes(tc.name)) toolsUsed.push(tc.name);
+                }
+                if (lastMessage._getType() === "ai" && lastMessage.content) {
+                  finalResponse = typeof lastMessage.content === 'string' ? lastMessage.content : JSON.stringify(lastMessage.content);
+                }
+              }
             }
-            if (lastMessage._getType() === "ai" && lastMessage.content) {
-              finalResponse = typeof lastMessage.content === 'string' ? lastMessage.content : JSON.stringify(lastMessage.content);
-            }
-          }
+          })();
+
+          await Promise.race([
+            streamPromise,
+            timeoutPromise
+          ]);
+
+          // Transition back to EXECUTING
+          await transitionWorkflowRun(runId, 'EXECUTING', { workflowId });
 
           agentOutput = {
             success: true,
@@ -180,6 +298,11 @@ export async function executeWorkflowLangGraph(
           };
         } catch (execErr: any) {
           console.error(`[LangGraph] Error in ${agent.name}:`, execErr);
+          
+          if (execErr.message === 'Workflow cancelled by user') {
+            throw execErr;
+          }
+
           agentOutput = {
             success: false,
             data: null,
@@ -197,6 +320,28 @@ export async function executeWorkflowLangGraph(
         }
 
         const duration = Date.now() - stepStartTime;
+
+        // ── Cost Intelligence Cost Logging (Phase 1.3) ──
+        const promptTokens = (agentOutput?.metadata as any)?.prompt_tokens || 850
+        const completionTokens = (agentOutput?.metadata as any)?.completion_tokens || 350
+        const stepCost = await costIntelligenceService.logStepCost(
+          runId,
+          agent.id,
+          agent.config?.model || 'Qwen/WebWorld-8B:featherless-ai',
+          promptTokens,
+          completionTokens,
+          duration
+        )
+
+        // Log Governance Audit Trail & Heartbeat
+        await agentGovernanceService.logAuditRecord(
+          tenantId,
+          agent.id,
+          agentOutput.success ? 'AGENT_STEP_SUCCESS' : 'AGENT_STEP_FAILED',
+          `Step ${agent.position} (${agent.name}) executed. Cost: $${stepCost.toFixed(4)}.`
+        )
+        await supervisorService.logComputeUsage(agent.id, stepCost)
+        await supervisorService.registerHeartbeat(agent.id, agentOutput.success ? 'idle' : 'failed', runId)
 
         await db.query(
           `UPDATE workflow_steps 
@@ -229,40 +374,57 @@ export async function executeWorkflowLangGraph(
         totalCredits += 1;
 
         if (!agentOutput.success) {
-           // We might want to break early if an agent fails
-           console.warn(`[LangGraph] ${agent.name} failed, but continuing workflow...`);
+           throw new Error(`Execution halted: Agent "${agent.name}" failed to complete successfully.`);
         }
       }
 
-      const totalDuration = Date.now() - startTime;
+      // 3. Transition to VALIDATING stage
+      await transitionWorkflowRun(runId, 'VALIDATING', { workflowId });
+      await new Promise(r => setTimeout(r, 600)); // Small delay for validation trace
 
-      await db.query(
-        `UPDATE workflow_runs 
-         SET status = 'completed', output_data = $1,
-             duration_ms = $2, credits_used = $3, completed_at = NOW()
-         WHERE id = $4`,
-        [JSON.stringify(previousOutputs), totalDuration, totalCredits, runId]
-      );
+      // ── Outcome Engine Scoring & Optimization Tuning ──
+      const finalOutcomeScore = await outcomeEngineService.scoreOutcome(runId, goalId);
+
+      try {
+        for (const ag of agents) {
+          await optimizationEngineService.triggerSelfImprovementTuning(ag.id, runId);
+        }
+      } catch (err: any) {
+        console.warn('[LangGraph] Optimization tuning failed:', err.message);
+      }
+
+      // ── Skills Harvesting Continuous Learning Loop (Phase 2.4) ──
+      try {
+        const { skillsHarvestingService } = await import('./skills-harvesting.service')
+        await skillsHarvestingService.harvestSkill(runId, tenantId)
+      } catch (harvestErr: any) {
+        console.warn('[LangGraph] Skills harvesting failed:', harvestErr.message)
+      }
+
+      // 4. Final transition: COMPLETED
+      await transitionWorkflowRun(runId, 'COMPLETED', {
+        workflowId,
+        outputData: {
+          ...previousOutputs,
+          outcome_score: finalOutcomeScore
+        },
+        creditsUsed: totalCredits,
+      });
 
       await db.query(`UPDATE workflows SET last_run_at = NOW(), run_count = run_count + 1 WHERE id = $1`, [workflowId]);
-      await db.query(`UPDATE tenants SET credits_remaining = GREATEST(credits_remaining - $1, 0) WHERE id = $2`, [totalCredits, tenantId]);
-
-      runEmitter.emitEvent(runId, "workflow_done", {
-        runId,
-        outputs: previousOutputs,
-        duration_ms: totalDuration,
-        credits_used: totalCredits,
-        agents_run: agents.length,
-        message: `✅ LangGraph Workflow complete in ${(totalDuration / 1000).toFixed(1)}s`,
-      });
 
     } catch (err: any) {
       console.error("[LangGraph] Workflow failed:", err);
-      await db.query(
-        `UPDATE workflow_runs SET status = 'failed', error_message = $1, duration_ms = $2, completed_at = NOW() WHERE id = $3`,
-        [err.message, Date.now() - startTime, runId]
-      );
-      runEmitter.emitEvent(runId, "workflow_error", { runId, error: err.message, message: `✗ Workflow failed: ${err.message}` });
+      const checkRunFinal = await db.query('SELECT status FROM workflow_runs WHERE id = $1', [runId]);
+      const finalStatus = checkRunFinal.rows[0]?.status || 'running';
+      
+      if (finalStatus !== 'cancelled') {
+        await transitionWorkflowRun(runId, 'FAILED', {
+          workflowId,
+          errorMessage: err.message,
+          creditsUsed: totalCredits,
+        });
+      }
     }
   });
 

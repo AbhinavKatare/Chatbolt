@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 220px;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #050507;
+      color: #ededed;
+      margin: 0;
+    }
+    h3 {
+      margin-top: 0;
+      color: #ffffff;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .status-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: #ef4444;
+    }
+    .dot.connected {
+      background-color: #22c55e;
+      box-shadow: 0 0 8px #22c55e;
+    }
+    .status-text {
+      font-weight: bold;
+    }
+    .info {
+      font-size: 11px;
+      color: #a1a1aa;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <h3>⚡ Chatbolt Browser</h3>
+  <div class="status-container">
+    <div id="status-dot" class="dot"></div>
+    <span id="status-text" class="status-text">Disconnected</span>
+  </div>
+  <div class="info">
+    Runs tasks securely on your own browser with your logged-in sessions. Keep this extension active during web operations.
+  </div>
+  <script>
+    function updateStatus() {
+      chrome.runtime.sendMessage({ type: 'GET_STATUS' }, (res) => {
+        if (res) {
+          const dot = document.getElementById('status-dot');
+          const text = document.getElementById('status-text');
+          if (res.connected) {
+            dot.className = 'dot connected';
+            text.innerText = 'Connected';
+            text.style.color = '#22c55e';
+          } else {
+            dot.className = 'dot';
+            text.innerText = 'Disconnected';
+            text.style.color = '#ef4444';
+          }
+        }
+      });
+    }
+    updateStatus();
+    chrome.runtime.onMessage.addListener((message) => {
+      if (message.type === 'STATUS_UPDATE') {
+        const dot = document.getElementById('status-dot');
+        const text = document.getElementById('status-text');
+        if (message.connected) {
+          dot.className = 'dot connected';
+          text.innerText = 'Connected';
+          text.style.color = '#22c55e';
+        } else {
+          dot.className = 'dot';
+          text.innerText = 'Disconnected';
+          text.style.color = '#ef4444';
+        }
+      }
+    });
+  </script>
+</body>
+</html>
