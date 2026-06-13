@@ -79,7 +79,7 @@
     chrome.runtime.onMessage.addListener((message) => {
       if (message.type === 'STATUS_UPDATE') {
         const dot = document.getElementById('status-dot');
-        const text = document.getElementById('status-text');
+        const text = document.getElementById('status-text');      // its an basic popup in browser for more control and credibility and ease for users 
         if (message.connected) {
           dot.className = 'dot connected';
           text.innerText = 'Connected';
@@ -91,6 +91,6 @@
         }
       }
     });
-  </script>
+  </script>  
 </body>
 </html>
