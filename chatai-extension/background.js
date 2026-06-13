@@ -7,7 +7,7 @@ chrome.storage.local.get(['tenantId'], (result) => {
     tenantId = result.tenantId;
     connectWebSocket();
   }
-});
+});   // extension based important tenantID for local storages
 
 // Listen to runtime messages (e.g. from content.js or popup.js)
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
