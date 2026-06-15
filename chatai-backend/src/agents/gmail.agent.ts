@@ -357,51 +357,76 @@ export class GmailAgent {
 
   async sendEmail(
     userId: string,
-    params: { to: string; subject: string; body: string; replyToThreadId?: string; attachmentPaths?: string[] }
+    params: { to: string; subject: string; body: string; replyToThreadId?: string; attachmentPaths?: string[] },
+    runId?: string
   ): Promise<{ messageId: string; threadId: string }> {
     logger.info(`[GmailAgent] sendEmail called for recipient: ${params.to}`)
     try {
       const gmail = await this.getGmailClient(userId)
+      let result: { messageId: string; threadId: string }
+
       if (!gmail) {
         logger.info(`[GmailAgent] Mock sending email to ${params.to}`)
-        return { messageId: `mock-msg-${Date.now()}`, threadId: params.replyToThreadId || `mock-thread-${Date.now()}` }
-      }
+        result = { messageId: `mock-msg-${Date.now()}`, threadId: params.replyToThreadId || `mock-thread-${Date.now()}` }
+      } else {
+        const emailLines = [
+          `To: ${params.to}`,
+          `Subject: ${params.subject}`,
+          'Content-Type: text/html; charset=utf-8',
+          ''
+        ]
 
-      const emailLines = [
-        `To: ${params.to}`,
-        `Subject: ${params.subject}`,
-        'Content-Type: text/html; charset=utf-8',
-        ''
-      ]
-
-      if (params.replyToThreadId) {
-        // Fetch thread messages to get message-id header for proper thread threading
-        const threadRes = await gmail.users.threads.get({ userId: 'me', id: params.replyToThreadId })
-        const lastMessage = threadRes.data.messages?.pop()
-        if (lastMessage) {
-          const headers = lastMessage.payload?.headers || []
-          const msgIdVal = headers.find(h => h.name?.toLowerCase() === 'message-id')?.value
-          if (msgIdVal) {
-            emailLines.splice(2, 0, `In-Reply-To: ${msgIdVal}`, `References: ${msgIdVal}`)
+        if (params.replyToThreadId) {
+          // Fetch thread messages to get message-id header for proper thread threading
+          const threadRes = await gmail.users.threads.get({ userId: 'me', id: params.replyToThreadId })
+          const lastMessage = threadRes.data.messages?.pop()
+          if (lastMessage) {
+            const headers = lastMessage.payload?.headers || []
+            const msgIdVal = headers.find(h => h.name?.toLowerCase() === 'message-id')?.value
+            if (msgIdVal) {
+              emailLines.splice(2, 0, `In-Reply-To: ${msgIdVal}`, `References: ${msgIdVal}`)
+            }
           }
         }
-      }
 
-      emailLines.push(params.body)
-      const rawMsg = Buffer.from(emailLines.join('\n')).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+        emailLines.push(params.body)
+        const rawMsg = Buffer.from(emailLines.join('\n')).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 
-      const res = await gmail.users.messages.send({
-        userId: 'me',
-        requestBody: {
-          raw: rawMsg,
-          threadId: params.replyToThreadId || undefined
+        const res = await gmail.users.messages.send({
+          userId: 'me',
+          requestBody: {
+            raw: rawMsg,
+            threadId: params.replyToThreadId || undefined
+          }
+        })
+
+        result = {
+          messageId: res.data.id || '',
+          threadId: res.data.threadId || ''
         }
-      })
-
-      return {
-        messageId: res.data.id || '',
-        threadId: res.data.threadId || ''
       }
+
+      if (runId) {
+        try {
+          const { actionJournalService } = await import('../services/action-journal.service')
+          await actionJournalService.recordAction({
+            userId,
+            runId,
+            actionType: 'send_email',
+            actionPayload: {
+              recipient: params.to,
+              subject: params.subject,
+              messageId: result.messageId,
+              threadId: result.threadId
+            },
+            isReversible: true
+          })
+        } catch (logErr: any) {
+          logger.warn('Failed to log email action in journal:', logErr.message)
+        }
+      }
+
+      return result
     } catch (err: any) {
       logger.error('[GmailAgent] sendEmail failed:', err.message)
       throw err

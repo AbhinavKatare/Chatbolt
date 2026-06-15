@@ -27,7 +27,7 @@ interface HistoryPanelProps {
 function statusIcon(status: string) {
   const norm = (status || '').toLowerCase()
   switch (norm) {
-    case 'completed': return <CheckCircle2 size={14} className="text-[#534AB7]" />
+    case 'completed': return <CheckCircle2 size={14} className="text-[var(--color-accent)]" />
     case 'failed': return <AlertCircle size={14} className="text-red-400" />
     case 'running':
     case 'executing':
@@ -94,14 +94,14 @@ export default function HistoryPanel({ isOpen, onClose, tenantId, onRerun, onVie
 
   return (
     <div
-      className={`fixed right-0 top-0 h-full w-80 bg-[#09090b] border-l border-zinc-800 z-50
+      className={`fixed right-0 top-0 h-full w-80 bg-[var(--color-surface)] border-l border-zinc-800 z-50
         flex flex-col shadow-2xl transition-transform duration-300 ease-out
         ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
         <div className="flex items-center gap-2">
-          <History size={16} className="text-[#534AB7]" />
+          <History size={16} className="text-[var(--color-accent)]" />
           <span className="text-sm font-semibold text-white">Run History</span>
         </div>
         <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors cursor-pointer">
@@ -117,7 +117,7 @@ export default function HistoryPanel({ isOpen, onClose, tenantId, onRerun, onVie
             onClick={() => setFilter(f)}
             className={`px-2.5 py-1 rounded text-xs font-medium transition-colors capitalize cursor-pointer
               ${filter === f
-                ? 'bg-[#534AB7]/10 text-[#534AB7] border border-[#534AB7]/30'
+                ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)] border border-[var(--color-accent)]/30'
                 : 'text-zinc-500 hover:text-zinc-300'
               }`}
           >
@@ -153,7 +153,7 @@ export default function HistoryPanel({ isOpen, onClose, tenantId, onRerun, onVie
                   document.getElementById('terminal-input')?.focus()
                 }, 100)
               }}
-              className="mt-2 text-xs font-bold text-[#534AB7] hover:underline flex items-center gap-1 cursor-pointer bg-[#534AB7]/5 border border-[#534AB7]/20 rounded-lg px-3 py-1.5 transition-all"
+              className="mt-2 text-xs font-bold text-[var(--color-accent)] hover:underline flex items-center gap-1 cursor-pointer bg-[var(--color-accent)]/5 border border-[var(--color-accent)]/20 rounded-lg px-3 py-1.5 transition-all"
             >
               Run your first task →
             </button>
@@ -188,7 +188,7 @@ export default function HistoryPanel({ isOpen, onClose, tenantId, onRerun, onVie
                     {run.status && run.status.toLowerCase() === 'completed' && onViewArtifact && (
                       <button
                         onClick={() => onViewArtifact(run.id)}
-                        className="mt-2.5 flex items-center gap-1 text-[10px] font-bold text-[#534AB7] hover:underline cursor-pointer bg-[#534AB7]/5 border border-[#534AB7]/20 rounded px-2 py-1 transition-all"
+                        className="mt-2.5 flex items-center gap-1 text-[10px] font-bold text-[var(--color-accent)] hover:underline cursor-pointer bg-[var(--color-accent)]/5 border border-[var(--color-accent)]/20 rounded px-2 py-1 transition-all"
                       >
                         <FileText size={10} />
                         <span>View Deliverable</span>
@@ -200,7 +200,7 @@ export default function HistoryPanel({ isOpen, onClose, tenantId, onRerun, onVie
                       onClick={() => onRerun(run.prompt || '')}
                       title="Recall prompt"
                       className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded cursor-pointer
-                        text-zinc-500 hover:text-[#534AB7] hover:bg-[#534AB7]/10"
+                        text-zinc-500 hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10"
                     >
                       <RotateCcw size={13} />
                     </button>

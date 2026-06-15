@@ -198,9 +198,9 @@ class QueueService {
 
     // 3. Fallback to PostgreSQL Queue
     await db.query(
-      `INSERT INTO workflow_jobs (run_id, job_type, payload, status, created_at)
-       VALUES ($1, $2, $3, 'pending', NOW())`,
-      [finalRunId, 'workflow', JSON.stringify(payload)]
+      `INSERT INTO workflow_jobs (run_id, job_type, payload, status, run_at, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [finalRunId, 'workflow', JSON.stringify(payload), 'pending', new Date().toISOString(), new Date().toISOString()]
     )
     logger.info(`[Queue] Enqueued run ${finalRunId} on PostgreSQL Queue`)
     return finalRunId

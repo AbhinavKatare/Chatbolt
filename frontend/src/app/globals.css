@@ -5,6 +5,14 @@
   --foreground: #F4F4F6;
   --accent: #534AB7;
   --border: rgba(255, 255, 255, 0.05);
+  
+  --color-bg: #050507;
+  --color-surface: #0D0D11;
+  --color-border: rgba(255, 255, 255, 0.05);
+  --color-text-primary: #F4F4F6;
+  --color-text-secondary: #9E9EAF;
+  --color-accent: #534AB7;
+  --color-success: #1D9E75;
 }
 
 @tailwind base;
@@ -19,6 +27,10 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   letter-spacing: -0.011em;
+}
+
+p {
+  line-height: 1.5;
 }
 
 @layer base {

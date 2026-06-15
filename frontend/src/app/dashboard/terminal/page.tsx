@@ -1,21 +1,23 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import { Sun, Moon, Sparkles, Bot, Loader2, Clock } from 'lucide-react'
 import { api, getSession, saveSession } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
 import ChatThread from '@/components/terminal/ChatThread'
 import InputBar from '@/components/terminal/InputBar'
-import ArtifactPanel from '@/components/terminal/ArtifactPanel'
 import SuggestionChips from '@/components/terminal/SuggestionChips'
 import TaskToast, { useTaskToast } from '@/components/terminal/TaskToast'
 import { TERMINAL_STRINGS, sanitizeUserFacingText } from '@/components/terminal/strings'
-import CommandPalette from '@/components/terminal/CommandPalette'
-import TemplateLibrary from '@/components/terminal/TemplateLibrary'
-import HistoryPanel from '@/components/terminal/HistoryPanel'
 import { MultimodalInput, MultimodalAttachment } from '@/components/ui/MultimodalInput'
 import StreakBadge from '@/components/terminal/StreakBadge'
 import { io } from 'socket.io-client'
+
+const ArtifactPanel = dynamic(() => import('@/components/terminal/ArtifactPanel'), { ssr: false, loading: () => null })
+const CommandPalette = dynamic(() => import('@/components/terminal/CommandPalette'), { ssr: false, loading: () => null })
+const TemplateLibrary = dynamic(() => import('@/components/terminal/TemplateLibrary'), { ssr: false, loading: () => null })
+const HistoryPanel = dynamic(() => import('@/components/terminal/HistoryPanel'), { ssr: false, loading: () => null })
 
 
 interface ChatMessage {
@@ -52,7 +54,232 @@ export default function TerminalPage() {
   const [currentRunId, setCurrentRunId] = useState<string | null>(null)
   const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(null)
 
+  const currentRunIdRef = useRef<string | null>(null)
+  const currentWorkflowIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    currentRunIdRef.current = currentRunId
+  }, [currentRunId])
+
+  useEffect(() => {
+    currentWorkflowIdRef.current = currentWorkflowId
+  }, [currentWorkflowId])
+
   const socketRef = useRef<any>(null)
+
+  // Auto-loading created files upon workflow complete
+  const loadArtifactsForRun = useCallback(async (runId: string) => {
+    try {
+      const wsRes = await api.workspaces.list()
+      const wsList = wsRes.workspaces || []
+      if (!wsList.length) return
+
+      const projRes = await api.workspaces.listProjects(wsList[0].id)
+      const projects = projRes.projects || []
+      if (!projects.length) return
+
+      const artRes = await api.artifacts.list(projects[0].id)
+      const list = artRes.artifacts || []
+
+      const match = list.find((a: any) => {
+        const meta = typeof a.metadata === 'string' ? JSON.parse(a.metadata) : (a.metadata || {})
+        return meta.source_task === runId || meta.source_run_id === runId || meta.source_workflow === currentWorkflowIdRef.current
+      })
+
+      if (match) {
+        setActiveArtifact(match)
+        toastSuccess('Deliverable Ready', `Generated file "${match.name}" loaded.`)
+      }
+    } catch (err: any) {
+      console.warn('Failed to load output artifact:', err.message)
+    }
+  }, [toastSuccess])
+
+  const handleSocketConnect = useCallback(() => {
+    if (socketRef.current && currentRunIdRef.current) {
+      socketRef.current.emit('subscribe:run', { runId: currentRunIdRef.current })
+    }
+  }, [])
+
+  const handleSocketTaskStart = useCallback((payload: any) => {
+    setMessages(prev => prev.map(m => {
+      if (m.runId !== payload.runId) return m
+      return {
+        ...m,
+        status: 'planning',
+        logs: ['⚡ Task execution pipeline initialized...']
+      }
+    }))
+  }, [])
+
+  const handleSocketTaskStep = useCallback((payload: any) => {
+    const agentId = payload.agentId || payload.data?.agentId
+    const role = payload.data?.role
+    const name = payload.data?.name || agentId
+    const msg = payload.data?.message
+    const summary = payload.data?.summary
+    const errorMsg = payload.data?.error
+
+    setMessages(prev => prev.map(m => {
+      if (m.runId !== payload.runId) return m
+
+      const updatedLogs = [...(m.logs || [])]
+      let updatedStatus = m.status || 'executing'
+      let updatedSteps = [...(m.steps || [])]
+
+      if (msg) {
+        updatedLogs.push(`   ${msg}`)
+      } else if (summary) {
+        updatedSteps = updatedSteps.map(s => 
+          s.id === agentId || s.role === role
+            ? { ...s, status: 'completed' }
+            : s
+        )
+        updatedLogs.push(`✔ Completed step: ${name}`)
+      } else if (errorMsg) {
+        updatedSteps = updatedSteps.map(s => 
+          s.id === agentId || s.role === role
+            ? { ...s, status: 'failed' }
+            : s
+        )
+        updatedLogs.push(`✗ Error: ${errorMsg}`)
+      } else {
+        updatedSteps = updatedSteps.map(s => 
+          s.id === agentId || s.role === role
+            ? { ...s, status: 'running' }
+            : s
+        )
+        updatedLogs.push(`▶ Starting step: ${name}`)
+      }
+
+      return {
+        ...m,
+        status: updatedStatus,
+        steps: updatedSteps,
+        logs: updatedLogs
+      }
+    }))
+  }, [])
+
+  const handleSocketTaskProgress = useCallback((payload: any) => {
+    setMessages(prev => prev.map(m => {
+      if (m.runId !== payload.runId) return m
+      return {
+        ...m,
+        progress: payload.data?.progress
+      }
+    }))
+  }, [])
+
+  const handleSocketTaskCompleted = useCallback((payload: any) => {
+    setMessages(prev => prev.map(m => {
+      if (m.runId !== payload.runId) return m
+      return {
+        ...m,
+        status: 'completed',
+        progress: 100,
+        taskReceipt: payload.data?.task_receipt,
+        templateCandidate: payload.data?.template_candidate,
+        logs: [...(m.logs || []), '🎉 Goal outcome completed successfully.']
+      }
+    }))
+    if (payload.runId) {
+      loadArtifactsForRun(payload.runId)
+    }
+  }, [loadArtifactsForRun])
+
+  const handleSocketTaskFailed = useCallback((payload: any) => {
+    setMessages(prev => prev.map(m => {
+      if (m.runId !== payload.runId) return m
+      return {
+        ...m,
+        status: 'failed',
+        logs: [...(m.logs || []), `✗ Pipeline failed to complete: ${payload.data?.error || 'Unknown failure'}`]
+      }
+    }))
+  }, [])
+
+  const handleSocketPermissionRequired = useCallback((payload: any) => {
+    setMessages(prev => prev.map(m => {
+      if (m.runId !== payload.runId) return m
+      return {
+        ...m,
+        status: 'waiting',
+        logs: [...(m.logs || []), '⏳ Execution paused — awaiting client permission']
+      }
+    }))
+  }, [])
+
+  const handleSocketArtifactCreated = useCallback((payload: any) => {
+    if (payload.runId) {
+      loadArtifactsForRun(payload.runId)
+    }
+  }, [loadArtifactsForRun])
+
+  const handleSocketActionJournaled = useCallback((payload: any) => {
+    setMessages(prev => prev.map(m => {
+      if (m.runId !== payload.runId) return m
+      return {
+        ...m,
+        logs: [...(m.logs || []), `↩ Reversible action logged. Undo available for 120s.`]
+      }
+    }))
+  }, [])
+
+  const handleSocketBrowserScreenshot = useCallback((payload: any) => {
+    if (payload.data?.screenshot) {
+      setActiveArtifact({
+        id: `screenshot-${payload.runId}`,
+        name: 'Live Browser View',
+        type: 'screenshot',
+        content: payload.data.screenshot
+      })
+    }
+  }, [])
+
+  const handleSocketIntegrationRequired = useCallback((payload: any) => {
+    setMessages(prev => prev.map(m => {
+      if (m.runId !== payload.runId) return m
+      return {
+        ...m,
+        status: 'integration_required',
+        taskConfig: {
+          service: payload.data?.service,
+          userMessage: payload.data?.userMessage,
+          actionUrl: payload.data?.actionUrl || '/dashboard/plugins'
+        }
+      }
+    }))
+  }, [])
+
+  const handleSocketBackgroundModeStarted = useCallback((payload: any) => {
+    setMessages(prev => prev.map(m => {
+      if (m.runId !== payload.runId) return m
+      return {
+        ...m,
+        logs: [...(m.logs || []), '⏳ Pipeline running in background mode...']
+      }
+    }))
+  }, [])
+
+  const handleSocketBillingRequired = useCallback((payload: any) => {
+    setMessages(prev => prev.map(m => {
+      if (m.runId !== payload.runId) return m
+      return {
+        ...m,
+        status: 'billing_required',
+        taskConfig: {
+          userMessage: payload.data?.personalised_message || payload.data?.userMessage,
+          actionUrl: payload.data?.upgrade_url || '/dashboard/settings/billing',
+          taskType: payload.data?.task_type
+        }
+      }
+    }))
+  }, [])
+
+  const handleSocketAnnualNudge = useCallback((payload: any) => {
+    toastSuccess('Exclusive Offer', 'Upgrade to our annual plan and save 20%!')
+  }, [toastSuccess])
 
   useEffect(() => {
     if (!session?.token) {
@@ -73,153 +300,56 @@ export default function TerminalPage() {
 
     socketRef.current = socket
 
-    socket.on('connect', () => {
-      if (currentRunId) {
-        socket.emit('subscribe:run', { runId: currentRunId })
-      }
-    })
-
-    socket.on('task:start', (payload: any) => {
-      setMessages(prev => prev.map(m => {
-        if (m.runId !== payload.runId) return m
-        return {
-          ...m,
-          status: 'planning',
-          logs: ['⚡ Task execution pipeline initialized...']
-        }
-      }))
-    })
-
-    socket.on('task:step', (payload: any) => {
-      const agentId = payload.agentId || payload.data?.agentId
-      const role = payload.data?.role
-      const name = payload.data?.name || agentId
-      const msg = payload.data?.message
-      const summary = payload.data?.summary
-      const errorMsg = payload.data?.error
-
-      setMessages(prev => prev.map(m => {
-        if (m.runId !== payload.runId) return m
-
-        const updatedLogs = [...(m.logs || [])]
-        let updatedStatus = m.status || 'executing'
-        let updatedSteps = [...(m.steps || [])]
-
-        if (msg) {
-          updatedLogs.push(`   ${msg}`)
-        } else if (summary) {
-          updatedSteps = updatedSteps.map(s => 
-            s.id === agentId || s.role === role
-              ? { ...s, status: 'completed' }
-              : s
-          )
-          updatedLogs.push(`✔ Completed step: ${name}`)
-        } else if (errorMsg) {
-          updatedSteps = updatedSteps.map(s => 
-            s.id === agentId || s.role === role
-              ? { ...s, status: 'failed' }
-              : s
-          )
-          updatedLogs.push(`✗ Error: ${errorMsg}`)
-        } else {
-          updatedSteps = updatedSteps.map(s => 
-            s.id === agentId || s.role === role
-              ? { ...s, status: 'running' }
-              : s
-          )
-          updatedLogs.push(`▶ Starting step: ${name}`)
-        }
-
-        return {
-          ...m,
-          status: updatedStatus,
-          steps: updatedSteps,
-          logs: updatedLogs
-        }
-      }))
-    })
-
-    socket.on('task:progress', (payload: any) => {
-      setMessages(prev => prev.map(m => {
-        if (m.runId !== payload.runId) return m
-        return {
-          ...m,
-          progress: payload.data?.progress
-        }
-      }))
-    })
-
-    socket.on('task:completed', (payload: any) => {
-      setMessages(prev => prev.map(m => {
-        if (m.runId !== payload.runId) return m
-        return {
-          ...m,
-          status: 'completed',
-          progress: 100,
-          taskReceipt: payload.data?.task_receipt,
-          templateCandidate: payload.data?.template_candidate,
-          logs: [...(m.logs || []), '🎉 Goal outcome completed successfully.']
-        }
-      }))
-      if (payload.runId) {
-        loadArtifactsForRun(payload.runId)
-      }
-    })
-
-    socket.on('task:failed', (payload: any) => {
-      setMessages(prev => prev.map(m => {
-        if (m.runId !== payload.runId) return m
-        return {
-          ...m,
-          status: 'failed',
-          logs: [...(m.logs || []), `✗ Pipeline failed to complete: ${payload.data?.error || 'Unknown failure'}`]
-        }
-      }))
-    })
-
-    socket.on('permission:required', (payload: any) => {
-      setMessages(prev => prev.map(m => {
-        if (m.runId !== payload.runId) return m
-        return {
-          ...m,
-          status: 'waiting',
-          logs: [...(m.logs || []), '⏳ Execution paused — awaiting client permission']
-        }
-      }))
-    })
-
-    socket.on('artifact:created', (payload: any) => {
-      if (payload.runId) {
-        loadArtifactsForRun(payload.runId)
-      }
-    })
-
-    socket.on('action:journaled', (payload: any) => {
-      setMessages(prev => prev.map(m => {
-        if (m.runId !== payload.runId) return m
-        return {
-          ...m,
-          logs: [...(m.logs || []), `↩ Reversible action logged. Undo available for 120s.`]
-        }
-      }))
-    })
-
-    socket.on('browser:screenshot', (payload: any) => {
-      if (payload.data?.screenshot) {
-        setActiveArtifact({
-          id: `screenshot-${payload.runId}`,
-          name: 'Live Browser View',
-          type: 'screenshot',
-          content: payload.data.screenshot
-        })
-      }
-    })
+    socket.on('connect', handleSocketConnect)
+    socket.on('task:start', handleSocketTaskStart)
+    socket.on('task:step', handleSocketTaskStep)
+    socket.on('task:progress', handleSocketTaskProgress)
+    socket.on('task:completed', handleSocketTaskCompleted)
+    socket.on('task:failed', handleSocketTaskFailed)
+    socket.on('permission:required', handleSocketPermissionRequired)
+    socket.on('artifact:created', handleSocketArtifactCreated)
+    socket.on('action:journaled', handleSocketActionJournaled)
+    socket.on('browser:screenshot', handleSocketBrowserScreenshot)
+    socket.on('integration_required', handleSocketIntegrationRequired)
+    socket.on('background_mode_started', handleSocketBackgroundModeStarted)
+    socket.on('billing_required', handleSocketBillingRequired)
+    socket.on('annual_nudge', handleSocketAnnualNudge)
 
     return () => {
+      socket.off('connect', handleSocketConnect)
+      socket.off('task:start', handleSocketTaskStart)
+      socket.off('task:step', handleSocketTaskStep)
+      socket.off('task:progress', handleSocketTaskProgress)
+      socket.off('task:completed', handleSocketTaskCompleted)
+      socket.off('task:failed', handleSocketTaskFailed)
+      socket.off('permission:required', handleSocketPermissionRequired)
+      socket.off('artifact:created', handleSocketArtifactCreated)
+      socket.off('action:journaled', handleSocketActionJournaled)
+      socket.off('browser:screenshot', handleSocketBrowserScreenshot)
+      socket.off('integration_required', handleSocketIntegrationRequired)
+      socket.off('background_mode_started', handleSocketBackgroundModeStarted)
+      socket.off('billing_required', handleSocketBillingRequired)
+      socket.off('annual_nudge', handleSocketAnnualNudge)
       socket.disconnect()
       socketRef.current = null
     }
-  }, [session])
+  }, [
+    session?.token,
+    handleSocketConnect,
+    handleSocketTaskStart,
+    handleSocketTaskStep,
+    handleSocketTaskProgress,
+    handleSocketTaskCompleted,
+    handleSocketTaskFailed,
+    handleSocketPermissionRequired,
+    handleSocketArtifactCreated,
+    handleSocketActionJournaled,
+    handleSocketBrowserScreenshot,
+    handleSocketIntegrationRequired,
+    handleSocketBackgroundModeStarted,
+    handleSocketBillingRequired,
+    handleSocketAnnualNudge
+  ])
 
   useEffect(() => {
     if (socketRef.current && currentRunId) {
@@ -235,6 +365,17 @@ export default function TerminalPage() {
 
   const abortRef = useRef<AbortController | null>(null)
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null)
+  const isAtBottomRef = useRef<boolean>(true)
+
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    const threshold = 50
+    const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= threshold
+    isAtBottomRef.current = isAtBottom
+  }, [])
+
   const inputBarRef = useRef<any>(null)
 
   // Multimodal attachment (file, URL, voice)
@@ -270,17 +411,154 @@ export default function TerminalPage() {
     return () => clearInterval(interval)
   }, [])
 
-  // Fetch active integrations for dynamic suggestion chips
+  // Caching utilities
+  const getCached = useCallback((key: string, ttlSeconds = 300) => {
+    if (typeof window === 'undefined') return null
+    try {
+      const dataStr = localStorage.getItem(`chatbolt_cache_${key}`)
+      if (!dataStr) return null
+      const entry = JSON.parse(dataStr)
+      const ageSeconds = (Date.now() - entry.timestamp) / 1000
+      if (ageSeconds < ttlSeconds) {
+        return entry.value
+      }
+    } catch {}
+    return null
+  }, [])
+
+  const setCached = useCallback((key: string, value: any) => {
+    if (typeof window === 'undefined') return
+    try {
+      const entry = { value, timestamp: Date.now() }
+      localStorage.setItem(`chatbolt_cache_${key}`, JSON.stringify(entry))
+    } catch {}
+  }, [])
+
+  // Mount-time unified preloader with Promise.allSettled and Cache-First policy
   useEffect(() => {
-    if (session) {
-      api.plugins.list().then((res: any) => {
-        const active = (res.plugins || [])
+    const runPrefetch = async () => {
+      // 1. Resolve session first
+      const s = await getSession()
+      if (!s) return
+      setSession(s)
+
+      // 2. Load from cache first for instant rendering
+      const cachedProfile = getCached('profile')
+      const cachedIntegrations = getCached('integrations')
+      const cachedActiveRun = getCached('activeRuns')
+
+      if (cachedProfile) {
+        setSession((prev: any) => prev ? { ...prev, tenant: cachedProfile.tenant } : null)
+      }
+      if (cachedIntegrations) {
+        const active = (cachedIntegrations.plugins || cachedIntegrations.integrations || [])
           .filter((i: any) => i.connected)
           .map((i: any) => i.service_name || i.name)
         setConnectedServices(active)
-      }).catch(() => {})
+      }
+      if (cachedActiveRun && cachedActiveRun.run) {
+        setCurrentRunId(cachedActiveRun.run.id)
+        setCurrentWorkflowId(cachedActiveRun.run.workflow_id)
+        setMessages(prev => prev.length === 0 ? [
+          { id: 'rehydrated-user-msg', role: 'user', content: cachedActiveRun.run.prompt },
+          {
+            id: 'rehydrated-assistant-msg',
+            role: 'assistant',
+            isTask: true,
+            status: cachedActiveRun.run.status,
+            runId: cachedActiveRun.run.id,
+            workflowId: cachedActiveRun.run.workflow_id,
+            steps: cachedActiveRun.steps,
+            logs: ['⚡ Re-connecting to active task pipeline…'],
+            progress: cachedActiveRun.run.status === 'completed' ? 100 : 50,
+            taskReceipt: cachedActiveRun.run.task_receipt
+          }
+        ] : prev)
+      }
+
+      // 3. Fire API calls in parallel (eliminates waterfall)
+      try {
+        const [historyRes, integrationsRes, billingRes, suggestionsRes, activeRunsRes, profileRes] = await Promise.allSettled([
+          api.tasks.history(),
+          api.plugins.list(),
+          api.billing.usage(),
+          api.suggestions.get(),
+          api.tasks.active(),
+          api.auth.me()
+        ])
+
+        // 4. Distribute and cache results
+        if (historyRes.status === 'fulfilled') {
+          setCached('history', historyRes.value)
+        }
+        if (integrationsRes.status === 'fulfilled') {
+          const val = integrationsRes.value
+          setCached('integrations', val)
+          const active = (val.plugins || (val as any).integrations || [])
+            .filter((i: any) => i.connected)
+            .map((i: any) => i.service_name || i.name)
+          setConnectedServices(active)
+        }
+        if (billingRes.status === 'fulfilled') {
+          setCached('billing', billingRes.value)
+        }
+        if (suggestionsRes.status === 'fulfilled') {
+          setCached('suggestions', suggestionsRes.value)
+        }
+        if (profileRes.status === 'fulfilled' && profileRes.value?.tenant) {
+          const profile = profileRes.value
+          setCached('profile', profile)
+          setSession((prev: any) => prev ? { ...prev, tenant: profile.tenant } : null)
+          saveSession(s.token, profile.tenant)
+        }
+        if (activeRunsRes.status === 'fulfilled') {
+          const res = activeRunsRes.value
+          setCached('activeRuns', res)
+          if (res.run) {
+            setCurrentRunId(res.run.id)
+            setCurrentWorkflowId(res.run.workflow_id)
+            setMessages([
+              { id: 'rehydrated-user-msg', role: 'user', content: res.run.prompt },
+              {
+                id: 'rehydrated-assistant-msg',
+                role: 'assistant',
+                isTask: true,
+                status: res.run.status,
+                runId: res.run.id,
+                workflowId: res.run.workflow_id,
+                steps: res.steps,
+                logs: ['⚡ Re-connecting to active task pipeline…'],
+                progress: res.run.status === 'completed' ? 100 : 50,
+                taskReceipt: res.run.task_receipt
+              }
+            ])
+
+            const activeStatus = res.run.status.toLowerCase()
+            if (activeStatus !== 'completed' && activeStatus !== 'failed' && activeStatus !== 'cancelled') {
+              const controller = new AbortController()
+              abortRef.current = controller
+              const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+              const response = await fetch(`${baseUrl}/workflows/${res.run.workflow_id}/runs/${res.run.id}/stream`, {
+                headers: { 'Authorization': `Bearer ${s.token}` },
+                signal: controller.signal
+              })
+              if (response.ok) {
+                processSSEStream(response, 'rehydrated-assistant-msg', (runId) => {
+                  loadArtifactsForRun(runId)
+                })
+              }
+            } else {
+              loadArtifactsForRun(res.run.id)
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[Terminal Preload] Fetch error:', err)
+      }
     }
-  }, [session])
+
+    runPrefetch()
+  }, [])
 
   const getUserGreetingName = () => {
     if (session?.tenant?.name) return session.tenant.name
@@ -353,24 +631,6 @@ export default function TerminalPage() {
 
   // Fetch session and check ?prefill query parameter on load
   useEffect(() => {
-    getSession().then(async s => {
-      setSession(s)
-      if (s) {
-        try {
-          const profile = await api.auth.me()
-          if (profile && profile.tenant) {
-            setSession((prev: any) => {
-              if (!prev) return null;
-              return { ...prev, tenant: profile.tenant };
-            })
-            saveSession(s.token, profile.tenant)
-          }
-        } catch (e) {
-          console.warn('[Terminal] Failed to fetch latest profile:', e)
-        }
-      }
-    })
-    
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
       const prefill = params.get('prefill')
@@ -379,63 +639,6 @@ export default function TerminalPage() {
       }
     }
   }, [])
-
-  // Rehydrate in-progress runs on mount (Phase 7)
-  useEffect(() => {
-    if (session) {
-      const fetchActiveRun = async () => {
-        try {
-          const res = await api.tasks.active()
-          if (res.run) {
-            setCurrentRunId(res.run.id)
-            setCurrentWorkflowId(res.run.workflow_id)
-            setMessages(() => [
-              {
-                id: 'rehydrated-user-msg',
-                role: 'user',
-                content: res.run.prompt
-              },
-              {
-                id: 'rehydrated-assistant-msg',
-                role: 'assistant',
-                isTask: true,
-                status: res.run.status,
-                runId: res.run.id,
-                workflowId: res.run.workflow_id,
-                steps: res.steps,
-                logs: ['⚡ Re-connecting to active task pipeline…'],
-                progress: res.run.status === 'completed' ? 100 : 50,
-                taskReceipt: res.run.task_receipt
-              }
-            ])
-            
-            const activeStatus = res.run.status.toLowerCase()
-            if (activeStatus !== 'completed' && activeStatus !== 'failed' && activeStatus !== 'cancelled') {
-              const controller = new AbortController()
-              abortRef.current = controller
-              const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
-              const response = await fetch(`${baseUrl}/workflows/${res.run.workflow_id}/runs/${res.run.id}/stream`, {
-                headers: {
-                  'Authorization': `Bearer ${session?.token || ''}`
-                },
-                signal: controller.signal
-              })
-              if (response.ok) {
-                processSSEStream(response, 'rehydrated-assistant-msg', (runId) => {
-                  loadArtifactsForRun(runId)
-                })
-              }
-            } else {
-              loadArtifactsForRun(res.run.id)
-            }
-          }
-        } catch (err: any) {
-          console.warn('[Terminal] Failed to fetch active run:', err.message)
-        }
-      }
-      fetchActiveRun()
-    }
-  }, [session])
 
   // Load morning briefing on mount/session check if no messages (Phase 5)
   useEffect(() => {
@@ -479,7 +682,9 @@ export default function TerminalPage() {
 
   // Auto-scroll to bottom of thread on message update
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (isAtBottomRef.current) {
+      scrollRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
   }, [messages])
 
   // Global keydown listeners for Command Palette and Escape to Cancel
@@ -767,33 +972,6 @@ export default function TerminalPage() {
     }
   }, [])
 
-  // Auto-loading created files upon workflow complete
-  const loadArtifactsForRun = async (runId: string) => {
-    try {
-      const wsRes = await api.workspaces.list()
-      const wsList = wsRes.workspaces || []
-      if (!wsList.length) return
-
-      const projRes = await api.workspaces.listProjects(wsList[0].id)
-      const projects = projRes.projects || []
-      if (!projects.length) return
-
-      const artRes = await api.artifacts.list(projects[0].id)
-      const list = artRes.artifacts || []
-
-      const match = list.find((a: any) => {
-        const meta = typeof a.metadata === 'string' ? JSON.parse(a.metadata) : (a.metadata || {})
-        return meta.source_task === runId || meta.source_run_id === runId || meta.source_workflow === currentWorkflowId
-      })
-
-      if (match) {
-        setActiveArtifact(match)
-        toastSuccess('Deliverable Ready', `Generated file "${match.name}" loaded.`)
-      }
-    } catch (err: any) {
-      console.warn('Failed to load output artifact:', err.message)
-    }
-  }
 
   // Unified execution sender
   const handleExecute = async (promptText: string, extraInputs: Record<string, any> = {}) => {
@@ -1019,19 +1197,24 @@ export default function TerminalPage() {
         </header>
 
         {/* Messages thread / Welcome view */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+        <div 
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar"
+        >
           {messages.length === 0 ? (
             <div className="max-w-2xl mx-auto text-center py-16 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
               {/* Main headline */}
               <div className="space-y-4">
-                <h1 className={`font-semibold tracking-tight leading-tight ${
+                <h1 className={`text-center tracking-tight leading-tight text-[32px] font-[600] ${
                   isDark ? 'text-white' : 'text-zinc-900'
-                }`} style={{ fontSize: '34px' }}>
+                }`}>
                   {(() => {
+                    const greeting = getTimeBasedGreeting()
                     const name = getUserGreetingName()
                     return name
-                      ? `What can I do for you, ${name.split(' ')[0]}?`
-                      : 'What can I do for you?'
+                      ? `${greeting}, ${name.split(' ')[0]}`
+                      : `${greeting}`
                   })()}
                 </h1>
                 <p className={`text-sm transition-all duration-500 ${
@@ -1052,7 +1235,7 @@ export default function TerminalPage() {
                   <button
                     key={idx}
                     onClick={() => handleExecute(suggestion)}
-                    className={`group px-4 py-3.5 rounded-xl border text-left text-[12px] font-medium transition-all hover:scale-[1.01] cursor-pointer flex items-center justify-between ${
+                    className={`group px-4 py-3.5 rounded-xl border text-left text-[13px] font-medium transition-all hover:scale-[1.01] cursor-pointer flex items-center justify-between ${
                       isDark
                         ? 'bg-zinc-900/60 hover:bg-zinc-900 border-white/[0.06] hover:border-white/[0.12] text-zinc-300 hover:text-white'
                         : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 hover:border-zinc-300 text-zinc-700'
@@ -1067,15 +1250,32 @@ export default function TerminalPage() {
               </div>
             </div>
           ) : (
-            <div className="max-w-3xl mx-auto">
-              <ChatThread
-                messages={messages}
-                onApprovePermission={(idx) => callWorkflowAction(idx, 'approve')}
-                onRejectPermission={(idx) => callWorkflowAction(idx, 'reject')}
-                onCancelRun={handleCancelRun}
-                onSubmitCalibration={handleCalibrationSubmit}
-                onDismissCancel={handleDismissCancel}
-              />
+            <div className="max-w-[900px] w-full mx-auto">
+              {(() => {
+                const displayedMessages = messages.length > 200 ? messages.slice(-100) : messages
+                return (
+                  <ChatThread
+                    messages={displayedMessages}
+                    onApprovePermission={(idx) => {
+                      const originalIndex = messages.length > 200 ? (messages.length - 100 + idx) : idx
+                      callWorkflowAction(originalIndex, 'approve')
+                    }}
+                    onRejectPermission={(idx) => {
+                      const originalIndex = messages.length > 200 ? (messages.length - 100 + idx) : idx
+                      callWorkflowAction(originalIndex, 'reject')
+                    }}
+                    onCancelRun={handleCancelRun}
+                    onSubmitCalibration={(idx, values) => {
+                      const originalIndex = messages.length > 200 ? (messages.length - 100 + idx) : idx
+                      handleCalibrationSubmit(originalIndex, values)
+                    }}
+                    onDismissCancel={(idx) => {
+                      const originalIndex = messages.length > 200 ? (messages.length - 100 + idx) : idx
+                      handleDismissCancel(originalIndex)
+                    }}
+                  />
+                )
+              })()}
               {messages.length > 0 && messages[messages.length - 1].role === 'assistant' && messages[messages.length - 1].status === 'completed' && (
                 <SuggestionChips
                   taskName={messages[messages.length - 1].content || ''}

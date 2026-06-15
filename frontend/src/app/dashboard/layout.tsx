@@ -34,6 +34,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { success: toastSuccess, info: toastInfo, error: toastError } = useToast()
   
   const [session, setSession] = useState<any>(null)
+  const [isAuthChecking, setIsAuthChecking] = useState(true)
   const [activeRuns, setActiveRuns] = useState<any[]>([])
   const [showTerminalBadge, setShowTerminalBadge] = useState(false)
   const [lastCompletedCount, setLastCompletedCount] = useState<number | null>(null)
@@ -41,6 +42,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   // Premium interactive states
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false)
   const [selectedModel, setSelectedModel] = useState('Chatbolt 1.6 Lite')
   
@@ -61,13 +63,17 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
+    setIsAuthChecking(true)
     getSession().then(s => {
       if (!s) {
         router.replace('/login')
       } else {
         setSession(s)
+        setIsAuthChecking(false)
       }
-    }).catch(() => router.replace('/login'))
+    }).catch(() => {
+      router.replace('/login')
+    })
   }, [])
 
   // Global keyboard shortcuts
@@ -186,17 +192,30 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     }
   }, [session])
 
-  if (!session) return (
-    <div className="h-screen w-full flex items-center justify-center bg-[#050507]">
-      <div className="flex flex-col items-center gap-4">
-        <div className="relative w-10 h-10">
-          <div className="absolute inset-0 bg-[#534AB7]/20 rounded-xl animate-ping" />
-          <div className="relative w-10 h-10 bg-[#0D0D11] border border-[#534AB7]/30 rounded-xl flex items-center justify-center">
-            <div className="w-4 h-4 bg-[#534AB7] rounded-sm" />
+  if (isAuthChecking || !session) return (
+    <div className="h-screen w-full flex bg-[#050507] text-[#EDEDED] antialiased overflow-hidden font-sans select-none animate-pulse">
+      {/* Sidebar Skeleton */}
+      <aside className="w-[68px] md:w-64 border-r border-white/[0.04] bg-[#09090B] flex flex-col justify-between p-4 space-y-4">
+        <div className="space-y-4">
+          <div className="h-8 bg-zinc-800/50 rounded-lg w-32" />
+          <div className="space-y-2">
+            <div className="h-10 bg-zinc-800/50 rounded-xl" />
+            <div className="h-10 bg-zinc-800/50 rounded-xl" />
+            <div className="h-10 bg-zinc-800/50 rounded-xl" />
           </div>
         </div>
-        <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest animate-pulse">
-          Initializing Chatbolt OS...
+        <div className="h-10 bg-zinc-800/50 rounded-xl" />
+      </aside>
+      {/* Main Content Skeleton */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="h-14 border-b border-white/[0.04] bg-[#070709]/80 flex items-center justify-between px-6">
+          <div className="h-6 bg-zinc-800/50 rounded-lg w-40" />
+          <div className="h-7 bg-zinc-800/50 rounded-full w-7" />
+        </header>
+        <div className="flex-1 p-6 space-y-4 bg-[#050507]">
+          <div className="h-8 bg-zinc-800/50 rounded-lg w-[30%]" />
+          <div className="h-32 bg-zinc-800/30 rounded-2xl" />
+          <div className="h-64 bg-zinc-800/20 rounded-2xl" />
         </div>
       </div>
     </div>
@@ -271,11 +290,20 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   return (
     <div className="dark flex h-screen bg-[#050507] text-[#EDEDED] antialiased overflow-hidden font-sans select-none">
 
+      {/* Mobile Sidebar backdrop */}
+      {isMobileSidebarOpen && (
+        <div 
+          onClick={() => setIsMobileSidebarOpen(false)}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden animate-in fade-in duration-200"
+        />
+      )}
+
       {/* SIDEBAR */}
       <aside 
         className={`${
-          isSidebarCollapsed ? 'w-[68px]' : 'w-64'
-        } border-r border-white/[0.04] flex flex-col shrink-0 bg-[#09090B] justify-between transition-all duration-300 overflow-x-hidden relative`}
+          isSidebarCollapsed ? 'md:w-[68px]' : 'md:w-64'
+        } w-64 border-r border-white/[0.04] flex flex-col shrink-0 bg-[#09090B] justify-between transition-transform duration-300 md:transition-all overflow-x-hidden
+        fixed md:relative top-0 bottom-0 left-0 h-full z-45 md:translate-x-0 ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div className="flex flex-col min-h-0 flex-1">
           
@@ -323,6 +351,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                   <Link
                     key={item.name}
                     href={item.href}
+                    onClick={() => setIsMobileSidebarOpen(false)}
                     className={`flex items-center ${
                       isSidebarCollapsed ? 'justify-center p-2.5' : 'gap-2.5 px-4 py-2.5'
                     } bg-[#534AB7] hover:bg-[#534AB7]/90 text-white rounded-xl text-xs font-bold transition-all no-underline w-full shadow-[0_0_12px_rgba(83,74,183,0.4)]`}
@@ -353,6 +382,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 <Link
                   key={item.name}
                   href={item.href}
+                  onClick={() => setIsMobileSidebarOpen(false)}
                   className={`group flex items-center ${
                     isSidebarCollapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2'
                   } rounded-xl text-xs font-bold transition-all no-underline ${
@@ -534,10 +564,18 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         {/* Top Header Bar */}
         <header className="h-14 shrink-0 border-b border-white/[0.04] bg-[#070709]/80 backdrop-blur-md flex items-center justify-between px-6 z-20 relative">
           <div className="flex items-center gap-3">
+            {/* Mobile Hamburger Menu */}
+            <button 
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="p-1.5 text-zinc-500 hover:text-white rounded md:hidden transition-colors cursor-pointer"
+              title="Open Sidebar"
+            >
+              <Menu size={16} />
+            </button>
             {isSidebarCollapsed && (
               <button 
                 onClick={() => setIsSidebarCollapsed(false)}
-                className="p-1.5 text-zinc-500 hover:text-white rounded transition-colors"
+                className="p-1.5 text-zinc-500 hover:text-white rounded hidden md:block transition-colors cursor-pointer"
                 title="Expand Sidebar"
               >
                 <PanelLeft size={16} />

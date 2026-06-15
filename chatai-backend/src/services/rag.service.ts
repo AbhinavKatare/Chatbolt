@@ -6,20 +6,24 @@ import { Response } from 'express'
 import { syncLeadToSheet } from './sheets.service'
 
 // specialized NVIDIA Clients
+const getFallbackNvidiaKey = () => {
+  return process.env.NVIDIA_API_KEY_MISTRAL || process.env.NVIDIA_API_KEY_LLAMA || process.env.NVIDIA_API_KEY || process.env.KIMI_API_KEY || process.env.KIMI_K2_API_KEY || '';
+}
+
 export const nvidiaMistral = new OpenAI({
-  apiKey: process.env.NVIDIA_API_KEY_MISTRAL || '',
+  apiKey: process.env.NVIDIA_API_KEY_MISTRAL || getFallbackNvidiaKey(),
   baseURL: 'https://integrate.api.nvidia.com/v1',
 })
 
 export const nvidiaLlama = new OpenAI({
-  apiKey: process.env.NVIDIA_API_KEY_LLAMA || '',
+  apiKey: process.env.NVIDIA_API_KEY_LLAMA || getFallbackNvidiaKey(),
   baseURL: 'https://integrate.api.nvidia.com/v1',
 })
 
 export const nvidia = nvidiaLlama
 
 export const nvidiaNemotron = new OpenAI({
-  apiKey: process.env.NVIDIA_API_KEY_NEMOTRON || '',
+  apiKey: process.env.NVIDIA_API_KEY_NEMOTRON || getFallbackNvidiaKey(),
   baseURL: 'https://integrate.api.nvidia.com/v1',
 })
 

@@ -345,7 +345,7 @@ export const api = {
     disconnect: (service: string) => req<any>('POST', `/integrations/disconnect/${service}`),
     briefing: () => req<{ briefing: any }>('GET', '/integrations/briefing'),
     undoableActions: () => req<{ actions: any[] }>('GET', '/integrations/undo'),
-    undo: (actionId: string) => req<{ success: boolean; message: string }>('POST', `/integrations/undo/${actionId}`),
+    undo: (actionId: string) => req<{ success: boolean; message: string }>('DELETE', `/api/actions/${actionId}`),
     authUrl: (service: string) => req<{ url: string }>('GET', `/integrations/${service}/auth-url`),
     revoke: (service: string) => req<any>('DELETE', `/integrations/${service}`),
   },
@@ -394,6 +394,9 @@ export const api = {
     active: () => req<{ run: any; steps: any[] }>('GET', '/api/tasks/active'),
     history: (limit?: number) => req<{ runs: any[] }>('GET', `/api/tasks/history?limit=${limit || 50}`),
   },
+  suggestions: {
+    get: () => Promise.resolve<string[]>([]),
+  },
 
   schedules: {
     list: () => req<{ schedules: any[] }>('GET', '/automations/schedules'),
@@ -406,7 +409,7 @@ export const api = {
       team_id?: string
     }) => req<{ schedule: any }>('POST', '/automations/schedules', data),
     toggle: (id: string, isActive: boolean) =>
-      req<{ schedule: any }>('PATCH', `/automations/schedules/${id}`, { is_active: isActive }),
+      req<{ schedule: any }>('PATCH', `/api/schedules/${id}`, { is_active: isActive }),
     delete: (id: string) => req<{ success: boolean }>('DELETE', `/automations/schedules/${id}`),
   },
 

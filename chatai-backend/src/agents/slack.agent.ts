@@ -127,9 +127,15 @@ export class SlackAgent {
       if (runId) {
         try {
           const { actionJournalService } = await import('../services/action-journal.service')
-          await actionJournalService.logAction(userId, runId, 'slack_message', {
-            message_ts: ts,
-            channel_id: channelId
+          await actionJournalService.recordAction({
+            userId,
+            runId,
+            actionType: 'slack_message',
+            actionPayload: {
+              message_ts: ts,
+              channel_id: channelId
+            },
+            isReversible: true
           })
         } catch (logErr: any) {
           logger.warn('Failed to log Slack action in journal:', logErr.message)

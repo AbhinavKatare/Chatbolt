@@ -17,14 +17,12 @@ export class LLMOrchestrator {
   private client: OpenAI;
 
   constructor() {
-    const nvidiaApiKey = process.env.NVIDIA_API_KEY_2 || process.env.NVIDIA_API_KEY;
-    if (!nvidiaApiKey) {
-      throw new Error('NVIDIA API key is not configured');
-    }
+    const nvidiaApiKey = process.env.NVIDIA_API_KEY_2 || process.env.NVIDIA_API_KEY || process.env.KIMI_API_KEY || process.env.KIMI_K2_API_KEY || 'mock_key';
 
     this.client = new OpenAI({
       apiKey: nvidiaApiKey,
       baseURL: 'https://integrate.api.nvidia.com/v1',
+      timeout: 15000
     });
   }
 

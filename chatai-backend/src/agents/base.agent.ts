@@ -2,6 +2,7 @@ import { logger } from '../services/logger.service';
 import OpenAI from 'openai'
 import { Tenant } from '../types'
 import { traceService } from '../services/trace.service'
+import { runEmitter } from '../services/sse.service'
 
 // Clean environment variable helper (trims whitespace, trailing commas/semicolons/quotes, and handles casing mismatches)
 export function cleanEnvVar(key: string): string {
@@ -26,6 +27,7 @@ function getHFClient(): OpenAI {
     _hfClient = new OpenAI({
       apiKey: key,
       baseURL: 'https://router.huggingface.co/v1',
+      timeout: 15000
     })
   }
   return _hfClient
@@ -39,6 +41,7 @@ function getMistralClient(): OpenAI {
     _mistralClient = new OpenAI({
       apiKey: key,
       baseURL: 'https://api.mistral.ai/v1',
+      timeout: 15000
     })
   }
   return _mistralClient
@@ -51,6 +54,7 @@ function getOpenAIClient(): OpenAI {
     const key = cleanEnvVar('OPENAI_API_KEY')
     _openaiClient = new OpenAI({
       apiKey: key || 'dummy-key-to-prevent-openai-init-crash',
+      timeout: 15000
     })
   }
   return _openaiClient
@@ -64,6 +68,7 @@ function getKimiClient(): OpenAI {
     _kimiClient = new OpenAI({
       apiKey: key || 'dummy-nvapi-key-prevent-kimi-crash',
       baseURL: 'https://integrate.api.nvidia.com/v1',
+      timeout: 15000
     })
   }
   return _kimiClient
@@ -95,7 +100,7 @@ export async function callLLM(
 ): Promise<{ content: string; confidence: number }> {
   let currentModel = model || DEFAULT_FREE_MODEL
   
-  if (currentModel === DEFAULT_FREE_MODEL) {
+  if (currentModel === DEFAULT_FREE_MODEL && attempt === 1) {
     try {
       const { modelRouterService } = await import('../services/model-router.service')
       currentModel = modelRouterService.selectModel(userMsg)
@@ -119,13 +124,14 @@ export async function callLLM(
   } else if (isPaidModel) {
     client = getKimiClient()
     effectiveModel = currentModel === 'gpt-4o' ? 'moonshotai/kimi-k2.6' : 'moonshotai/kimi-k2.0'
-  } else if (mistralKey) {
-    // FORCE Mistral if available, because HF credits are depleted in the log
+  } else if (currentModel.includes('mistral') && mistralKey) {
     client = getMistralClient()
-    // ALWAYS force a Mistral model if we are using the Mistral client
     effectiveModel = 'mistral-large-latest'
   } else {
     client = getHFClient()
+    if (effectiveModel === 'Qwen/WebWorld-8B:featherless-ai') {
+      effectiveModel = 'Qwen/Qwen2.5-7B-Instruct'
+    }
   }
 
   if (runId) {
@@ -155,7 +161,10 @@ export async function callLLM(
       params.chat_template_kwargs = { thinking: true }
     }
 
-    const response = await client.chat.completions.create(params)
+    const response = await Promise.race([
+      client.chat.completions.create(params),
+      new Promise<any>((_, reject) => setTimeout(() => reject(new Error('LLM call timed out')), 25000))
+    ])
 
     const rawContent = response.choices[0]?.message?.content || ''
     
@@ -169,15 +178,14 @@ export async function callLLM(
     let isValid = true
     if (expectsJson) {
       try {
-        const cleaned = cleanContent.replace(/```json/gi, '').replace(/```/g, '').trim()
-        JSON.parse(cleaned)
+        safeParseJSON(cleanContent)
       } catch (err) {
         isValid = false
       }
     }
 
     if (!isValid && attempt < 3) {
-      logger.warn(`[LLM] JSON validation failed on model ${currentModel}. Retrying with powerful model...`)
+      logger.warn(`[LLM] JSON validation failed on model ${currentModel}. Retrying with fallback model...`)
       
       let tenantId = '00000000-0000-0000-0000-000000000000'
       if (runId) {
@@ -207,8 +215,12 @@ export async function callLLM(
         // silent
       }
 
-      const powerfulModel = process.env.MODEL_POWERFUL || 'moonshotai/kimi-k2.6'
-      return callLLM(powerfulModel, systemPrompt, userMsg, maxTokens, attempt + 1, runId, agentName)
+      // Fallback model: if we already used Kimi or others, try DEFAULT_FREE_MODEL. If we already used DEFAULT_FREE_MODEL, try Kimi.
+      let fallbackModel = DEFAULT_FREE_MODEL
+      if (currentModel === DEFAULT_FREE_MODEL) {
+        fallbackModel = process.env.MODEL_POWERFUL || 'moonshotai/kimi-k2.6'
+      }
+      return callLLM(fallbackModel, systemPrompt, userMsg, maxTokens, attempt + 1, runId, agentName)
     }
 
     // Self-correction loop: if confidence is extremely low or empty, retry (Block 1.3)
@@ -243,26 +255,38 @@ export async function callLLM(
     return { content: cleanContent, confidence }
   } catch (err: any) {
     const isRateLimit = err.status === 429 || err.message?.includes('429') || err.lc_error_code === 'MODEL_RATE_LIMIT';
+    const isTimeout = err.message?.includes('timed out') || err.message?.includes('timeout') || err.status === 408;
     
-    if (isRateLimit && attempt < 3) {
-      const waitTime = attempt * 15000; // Mistral free is 4 RPM, so wait 15s/30s
-      console.warn(`[LLM] Rate limit hit (429). Waiting ${waitTime/1000}s before retry...`);
+    if ((isRateLimit || isTimeout) && attempt < 3) {
+      let nextModel = DEFAULT_FREE_MODEL;
+      if (currentModel === DEFAULT_FREE_MODEL && mistralKey) {
+        nextModel = 'mistral-large-latest';
+      }
+      
+      const shouldWait = nextModel === currentModel;
+      const waitTime = shouldWait ? attempt * 15000 : 0;
+      
+      logger.info(`[LLM] Model ${currentModel} rate limited or timed out. Falling back to ${nextModel}${shouldWait ? ` after waiting ${waitTime/1000}s` : ''}`);
+      
       if (runId) {
         await traceService.logTrace(runId, 'RETRY_TRIGGERED', {
           agentName: agentName || 'Unknown Agent',
           attempt: attempt,
           delayMs: waitTime,
-          errorMessage: 'Rate limit hit (429)'
+          errorMessage: isRateLimit ? 'Rate limit hit' : 'Timeout hit'
         })
       }
-      await new Promise(r => setTimeout(r, waitTime));
-      return callLLM(model, systemPrompt, userMsg, maxTokens, attempt + 1, runId, agentName);
+      
+      if (shouldWait && waitTime > 0) {
+        await new Promise(r => setTimeout(r, waitTime));
+      }
+      return callLLM(nextModel, systemPrompt, userMsg, maxTokens, attempt + 1, runId, agentName);
     }
 
     console.error(`[LLM] Error for ${currentModel}:`, err.message);
     
-    // Fallback chain: If primary fails, try Qwen free (unless it already hit rate limit)
-    if (currentModel !== DEFAULT_FREE_MODEL && attempt < 2 && !isRateLimit) {
+    // Fallback chain: If primary fails, try Qwen free (unless it already hit rate limit/timeout)
+    if (currentModel !== DEFAULT_FREE_MODEL && attempt < 2 && !isRateLimit && !isTimeout) {
       logger.info(`[LLM] Falling back to ${DEFAULT_FREE_MODEL}`);
       return callLLM(DEFAULT_FREE_MODEL, systemPrompt, userMsg, maxTokens, attempt + 1, runId, agentName);
     }
@@ -297,6 +321,9 @@ export async function callLLMStream(
     effectiveModel = 'mistral-large-latest'
   } else {
     client = getHFClient()
+    if (effectiveModel === 'Qwen/WebWorld-8B:featherless-ai') {
+      effectiveModel = 'Qwen/Qwen2.5-7B-Instruct'
+    }
   }
 
   try {
@@ -553,5 +580,11 @@ export function safeParseJSON(str: string): any {
   }
 
   throw new Error(`Robust JSON parsing failed on all candidate strategies. Original content length: ${str.length}`)
+}
+
+export const BaseAgent = {
+  emitStep(runId: string, message: string) {
+    runEmitter.emitEvent(runId, 'agent_progress', { message })
+  }
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Sparkles, ArrowRight, Loader2 } from 'lucide-react'
 
 interface SuggestionChip {
@@ -54,12 +54,12 @@ function generateLocalSuggestions(taskName: string, taskOutput: string): Suggest
   return chips.slice(0, 3)
 }
 
-export default function SuggestionChips({
+const SuggestionChips = React.memo(({
   taskOutput = '',
   taskName = '',
   onSuggestionClick,
   className = ''
-}: SuggestionChipsProps) {
+}: SuggestionChipsProps) => {
   const [chips, setChips] = useState<SuggestionChip[]>([])
   const [visible, setVisible] = useState(false)
   const [clicked, setClicked] = useState<string | null>(null)
@@ -100,7 +100,7 @@ export default function SuggestionChips({
             key={chip.label}
             onClick={() => handleClick(chip)}
             disabled={clicked === chip.label}
-            className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
+            className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium
               bg-zinc-900 border border-zinc-700 text-zinc-300
               hover:border-[#534AB7]/50 hover:text-[#534AB7] hover:bg-[#534AB7]/5
               active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-50"
@@ -113,4 +113,8 @@ export default function SuggestionChips({
       </div>
     </div>
   )
-}
+})
+
+SuggestionChips.displayName = 'SuggestionChips'
+
+export default SuggestionChips

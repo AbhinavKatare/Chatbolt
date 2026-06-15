@@ -72,7 +72,7 @@ export default function CommandPalette({
       id: 'action-new',
       label: 'New task',
       category: 'Actions',
-      icon: <Terminal size={14} className="text-[#00E599]" />,
+      icon: <Terminal size={14} className="text-[var(--color-accent)]" />,
       action: () => {
         onSelectShortcut('', false)
         onClose()
@@ -232,7 +232,7 @@ export default function CommandPalette({
     <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div 
         ref={containerRef}
-        className="w-full max-w-[560px] min-h-[400px] max-h-[80vh] bg-[#09090b] border border-zinc-800 rounded-2xl flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+        className="w-full max-w-[560px] min-h-[400px] max-h-[80vh] bg-[var(--color-surface)] border border-zinc-800 rounded-2xl flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       >
         {/* Search header */}
         <div className="flex items-center gap-3 border-b border-zinc-800 px-4">
@@ -292,8 +292,8 @@ export default function CommandPalette({
                           </div>
                           {isSelected && (
                             <div className="flex items-center gap-1.5 shrink-0">
-                              <span className="text-[10px] text-[#00E599] font-bold uppercase tracking-wide">Select</span>
-                              <Check size={12} className="text-[#00E599]" />
+                              <span className="text-[10px] text-[var(--color-accent)] font-bold uppercase tracking-wide">Select</span>
+                              <Check size={12} className="text-[var(--color-accent)]" />
                             </div>
                           )}
                         </div>

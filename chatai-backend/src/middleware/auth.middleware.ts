@@ -3,6 +3,12 @@ import { supabase } from '../lib/supabase'
 import { queryOne } from '../db'
 import { Tenant } from '../types'
 import jwt from 'jsonwebtoken'
+import { logger } from '../services/logger.service'
+
+function logAuthFailure(req: Request, type: string, errorMsg?: string) {
+  const ip = req.ip || req.socket.remoteAddress || 'unknown'
+  logger.warn(`[Auth Failure] Timestamp: ${new Date().toISOString()} | IP: ${ip} | Type: ${type} | Msg: ${errorMsg || 'none'}`)
+}
 
 
 function isSupabaseNetworkError(err: any): boolean {
@@ -70,6 +76,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     }
 
     if (!token) {
+      logAuthFailure(req, 'MISSING_TOKEN', 'No token provided in headers')
       return res.status(401).json({ error: 'Missing or invalid authorization token' })
     }
 
@@ -119,7 +126,10 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
         const isNetwork = ['supabase_timeout', 'ENOTFOUND', 'ECONNREFUSED', 'fetch failed'].some(k => 
           (error.message || '').includes(k)
         )
-        if (!isNetwork) return res.status(401).json({ error: 'Invalid token' })
+        if (!isNetwork) {
+          logAuthFailure(req, 'INVALID_SUPABASE_TOKEN_ERR', error.message)
+          return res.status(401).json({ error: 'Invalid token' })
+        }
       } else if (data?.user) {
         user = data.user
       }
@@ -127,7 +137,10 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
       const isNetwork = ['supabase_timeout', 'ENOTFOUND', 'ECONNREFUSED', 'fetch failed'].some(k => 
         (e.message || '').includes(k)
       )
-      if (!isNetwork) return res.status(401).json({ error: 'Invalid token' })
+      if (!isNetwork) {
+        logAuthFailure(req, 'INVALID_SUPABASE_TOKEN_EXC', e.message)
+        return res.status(401).json({ error: 'Invalid token' })
+      }
     }
 
     if (user) {
@@ -136,6 +149,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
         [user.id, user.email]
       )
       if (!tenant) {
+        logAuthFailure(req, 'TENANT_NOT_FOUND', `No tenant for supabase user ${user.id} / ${user.email}`)
         return res.status(401).json({ error: 'Tenant record not found. Please complete signup.' })
       }
       if (!tenant.supabase_user_id) {
@@ -164,12 +178,14 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
           return next()
         }
       }
+      logAuthFailure(req, 'OFFLINE_FALLBACK_FAILED', `No tenant for decoded sub`)
       return res.status(401).json({ error: 'Not found' })
-    } catch (fallbackErr) {
+    } catch (fallbackErr: any) {
+      logAuthFailure(req, 'OFFLINE_FALLBACK_ERROR', fallbackErr.message)
       return res.status(401).json({ error: 'Not found' })
     }
-  } catch (err) {
-    console.error('Auth Middleware Error:', err)
+  } catch (err: any) {
+    logAuthFailure(req, 'UNEXPECTED_ERROR', err instanceof Error ? err.message : String(err))
     return res.status(401).json({ error: 'Authentication failed' })
   }
 }

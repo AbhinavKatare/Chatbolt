@@ -67,9 +67,9 @@ function InlineCalibrationForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3.5 mt-2 bg-[#141418]/40 border border-white/[0.05] p-4.5 rounded-2xl">
+    <form onSubmit={handleSubmit} className="space-y-3.5 mt-2 bg-[var(--color-surface)]/40 border border-white/[0.05] p-4.5 rounded-2xl">
       <div className="space-y-0.5">
-        <h5 className="text-[10px] font-black uppercase tracking-widest text-[#534AB7]">
+        <h5 className="text-[10px] font-black uppercase tracking-widest text-[var(--color-accent)]">
           {TERMINAL_STRINGS.needsInputsTitle}
         </h5>
         <p className="text-[10px] text-zinc-400 font-medium">
@@ -87,14 +87,14 @@ function InlineCalibrationForm({
             placeholder={`Enter ${f.field}...`}
             value={values[f.field] || ''}
             onChange={(e) => setValues(prev => ({ ...prev, [f.field]: e.target.value }))}
-            className="w-full bg-black/50 border border-white/[0.06] rounded-xl px-3 py-2 text-[11px] text-zinc-200 outline-none focus:border-[#534AB7]/40 transition-colors"
+            className="w-full bg-black/50 border border-white/[0.06] rounded-xl px-3 py-2 text-[13px] text-zinc-200 outline-none focus:border-[var(--color-accent)]/40 transition-colors"
             required={f.required}
           />
         </div>
       ))}
       <button
         type="submit"
-        className="w-full py-2.5 bg-[#534AB7] hover:bg-[#534AB7]/90 text-white font-black rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer"
+        className="w-full py-2.5 bg-[var(--color-accent)] hover:bg-[var(--color-accent)]/90 text-white font-black rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer"
       >
         Confirm Parameters
       </button>
@@ -122,7 +122,7 @@ function CancelConfirmationCard({
         <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
         <span className="text-[10px] font-black uppercase tracking-widest text-red-400">Cancel Task Confirmation</span>
       </div>
-      <p className="text-[11px] text-zinc-300 font-medium">
+      <p className="text-[13px] text-zinc-300 font-medium">
         Are you sure you want to cancel the currently running process?
       </p>
       <div className="flex items-center gap-2.5 mt-1">
@@ -151,6 +151,146 @@ function CancelConfirmationCard({
   )
 }
 
+const MessageBubble = React.memo(({
+  msg,
+  idx,
+  onApprovePermission,
+  onRejectPermission,
+  onCancelRun,
+  onSubmitCalibration,
+  onDismissCancel
+}: {
+  msg: ChatMessage
+  idx: number
+  onApprovePermission: (msgIndex: number) => void
+  onRejectPermission: (msgIndex: number) => void
+  onCancelRun: (runId: string) => void
+  onSubmitCalibration: (msgIndex: number, values: Record<string, string>) => void
+  onDismissCancel?: (msgIndex: number) => void
+}) => {
+  const isUser = msg.role === 'user'
+
+  return (
+    <div className={`flex gap-3.5 max-w-full ${isUser ? 'justify-end' : 'justify-start'}`}>
+      
+      {/* Left side avatar for Assistant */}
+      {!isUser && (
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-zinc-800 to-zinc-900 border border-white/[0.06] flex items-center justify-center text-zinc-400 shrink-0 shadow-md">
+          <Bot size={15} />
+        </div>
+      )}
+
+      {/* Bubble Contents */}
+      <div className={`flex flex-col gap-2.5 max-w-[85%] ${isUser ? 'items-end' : 'items-start'}`}>
+        
+        {/* Text Bubble */}
+        {(msg.content || msg.isTyping) && (
+          <div className={`rounded-2xl px-4 py-3 text-[13px] leading-relaxed shadow-sm ${
+            isUser
+              ? 'bg-[var(--color-surface)] border border-white/[0.05] text-zinc-100 font-medium'
+              : 'text-zinc-200'
+          }`}>
+            <div 
+              dangerouslySetInnerHTML={{ __html: formatMarkdown(sanitizeUserFacingText(msg.content || '')) }} 
+              className="space-y-1.5"
+            />
+            {msg.isTyping && (
+              <span className="inline-block w-1.5 h-3.5 bg-[var(--color-accent)] ml-1.5 animate-pulse vertical-middle align-middle" />
+            )}
+          </div>
+        )}
+
+        {/* Step Progress Tracker Card (strips all technical terms) */}
+        {msg.isTask && msg.status !== 'needs_inputs' && (
+          <div className="w-full min-w-[280px] md:min-w-[420px]">
+            <ExecutionCard
+              status={msg.status || 'planning'}
+              progress={msg.progress}
+              steps={msg.steps}
+              logs={msg.logs}
+              runId={msg.runId}
+              taskReceipt={msg.taskReceipt}
+              templateCandidate={msg.templateCandidate}
+              onCancel={() => msg.runId && onCancelRun(msg.runId)}
+            />
+          </div>
+        )}
+
+        {/* Inline Permission Gates (replacing overlays/modals) */}
+        {msg.isTask && msg.status === 'waiting' && (
+          <div className="w-full min-w-[280px] md:min-w-[420px]">
+            <PermissionCard
+              onApprove={() => onApprovePermission(idx)}
+              onReject={() => onRejectPermission(idx)}
+            />
+          </div>
+        )}
+
+        {/* Inline Calibration Setup form */}
+        {msg.isTask && msg.status === 'needs_inputs' && msg.taskConfig && (
+          <div className="w-full min-w-[280px] md:min-w-[420px]">
+            <InlineCalibrationForm
+              fields={msg.taskConfig.missing_inputs || []}
+              onSubmit={(values) => onSubmitCalibration(idx, values)}
+            />
+          </div>
+        )}
+
+        {/* Inline Integration Connection card */}
+        {msg.isTask && msg.status === 'integration_required' && msg.taskConfig && (
+          <div className="w-full min-w-[280px] md:min-w-[420px] bg-[var(--color-surface)]/40 border border-white/[0.05] p-5 rounded-2xl flex flex-col items-center gap-3.5 text-center">
+            <div className="w-10 h-10 bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/20 rounded-xl flex items-center justify-center">
+              <span className="text-xl">⚡</span>
+            </div>
+            <p className="text-[13px] text-zinc-300 font-medium">
+              {msg.taskConfig.userMessage}
+            </p>
+            <a
+              href={msg.taskConfig.actionUrl}
+              className="px-4 py-2.5 bg-[var(--color-accent)] hover:bg-[var(--color-accent)]/90 text-white font-black rounded-xl text-[9px] uppercase tracking-widest inline-block transition-all cursor-pointer shadow-md hover:scale-[1.02] active:scale-95 no-underline"
+            >
+              Connect {msg.taskConfig.service === 'google-calendar' ? 'Google Calendar' : msg.taskConfig.service === 'google-drive' ? 'Google Drive' : msg.taskConfig.service.charAt(0).toUpperCase() + msg.taskConfig.service.slice(1)}
+            </a>
+          </div>
+        )}
+
+        {/* Inline Billing Upgrade card */}
+        {msg.isTask && msg.status === 'billing_required' && msg.taskConfig && (
+          <UpgradePrompt
+            message={msg.taskConfig.userMessage}
+            taskType={msg.taskConfig.taskType}
+            onUpgradeClick={() => {
+              window.location.href = msg.taskConfig.actionUrl
+            }}
+            isDark={true}
+          />
+        )}
+
+        {/* Inline Cancel Confirmation */}
+        {msg.isTask && msg.status === 'cancel_confirmation' && (
+          <CancelConfirmationCard
+            runId={msg.runId}
+            idx={idx}
+            onDismissCancel={onDismissCancel}
+            onCancelRun={onCancelRun}
+          />
+        )}
+
+      </div>
+
+      {/* Right side avatar for User */}
+      {isUser && (
+        <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-white/[0.06] flex items-center justify-center text-zinc-400 shrink-0 shadow-md">
+          <User size={15} />
+        </div>
+      )}
+
+    </div>
+  )
+})
+
+MessageBubble.displayName = 'MessageBubble'
+
 export default function ChatThread({
   messages,
   onApprovePermission,
@@ -161,127 +301,18 @@ export default function ChatThread({
 }: ChatThreadProps) {
   return (
     <div className="space-y-6">
-      {messages.map((msg, idx) => {
-        const isUser = msg.role === 'user'
-        
-        return (
-          <div key={msg.id || idx} className={`flex gap-3.5 max-w-full ${isUser ? 'justify-end' : 'justify-start'}`}>
-            
-            {/* Left side avatar for Assistant */}
-            {!isUser && (
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-zinc-800 to-zinc-900 border border-white/[0.06] flex items-center justify-center text-zinc-400 shrink-0 shadow-md">
-                <Bot size={15} />
-              </div>
-            )}
-
-            {/* Bubble Contents */}
-            <div className={`flex flex-col gap-2.5 max-w-[85%] ${isUser ? 'items-end' : 'items-start'}`}>
-              
-              {/* Text Bubble */}
-              {(msg.content || msg.isTyping) && (
-                <div className={`rounded-2xl px-4 py-3 text-[12px] leading-relaxed shadow-sm ${
-                  isUser
-                    ? 'bg-[#141418] border border-white/[0.05] text-zinc-100 font-medium'
-                    : 'text-zinc-200'
-                }`}>
-                  <div 
-                    dangerouslySetInnerHTML={{ __html: formatMarkdown(sanitizeUserFacingText(msg.content || '')) }} 
-                    className="space-y-1.5"
-                  />
-                  {msg.isTyping && (
-                    <span className="inline-block w-1.5 h-3.5 bg-[#534AB7] ml-1.5 animate-pulse vertical-middle align-middle" />
-                  )}
-                </div>
-              )}
-
-              {/* Step Progress Tracker Card (strips all technical terms) */}
-              {msg.isTask && msg.status !== 'needs_inputs' && (
-                <div className="w-full min-w-[280px] md:min-w-[420px]">
-                  <ExecutionCard
-                    status={msg.status || 'planning'}
-                    progress={msg.progress}
-                    steps={msg.steps}
-                    logs={msg.logs}
-                    runId={msg.runId}
-                    taskReceipt={msg.taskReceipt}
-                    templateCandidate={msg.templateCandidate}
-                    onCancel={() => msg.runId && onCancelRun(msg.runId)}
-                  />
-                </div>
-              )}
-
-              {/* Inline Permission Gates (replacing overlays/modals) */}
-              {msg.isTask && msg.status === 'waiting' && (
-                <div className="w-full min-w-[280px] md:min-w-[420px]">
-                  <PermissionCard
-                    onApprove={() => onApprovePermission(idx)}
-                    onReject={() => onRejectPermission(idx)}
-                  />
-                </div>
-              )}
-
-              {/* Inline Calibration Setup form */}
-              {msg.isTask && msg.status === 'needs_inputs' && msg.taskConfig && (
-                <div className="w-full min-w-[280px] md:min-w-[420px]">
-                  <InlineCalibrationForm
-                    fields={msg.taskConfig.missing_inputs || []}
-                    onSubmit={(values) => onSubmitCalibration(idx, values)}
-                  />
-                </div>
-              )}
-
-              {/* Inline Integration Connection card */}
-              {msg.isTask && msg.status === 'integration_required' && msg.taskConfig && (
-                <div className="w-full min-w-[280px] md:min-w-[420px] bg-[#141418]/40 border border-white/[0.05] p-5 rounded-2xl flex flex-col items-center gap-3.5 text-center">
-                  <div className="w-10 h-10 bg-[#534AB7]/10 border border-[#534AB7]/20 rounded-xl flex items-center justify-center">
-                    <span className="text-xl">⚡</span>
-                  </div>
-                  <p className="text-[11px] text-zinc-300 font-medium">
-                    {msg.taskConfig.userMessage}
-                  </p>
-                  <a
-                    href={msg.taskConfig.actionUrl}
-                    className="px-4 py-2.5 bg-[#534AB7] hover:bg-[#534AB7]/90 text-white font-black rounded-xl text-[9px] uppercase tracking-widest inline-block transition-all cursor-pointer shadow-md hover:scale-[1.02] active:scale-95 no-underline"
-                  >
-                    Connect {msg.taskConfig.service === 'google-calendar' ? 'Google Calendar' : msg.taskConfig.service === 'google-drive' ? 'Google Drive' : msg.taskConfig.service.charAt(0).toUpperCase() + msg.taskConfig.service.slice(1)}
-                  </a>
-                </div>
-              )}
-
-              {/* Inline Billing Upgrade card */}
-              {msg.isTask && msg.status === 'billing_required' && msg.taskConfig && (
-                <UpgradePrompt
-                  message={msg.taskConfig.userMessage}
-                  taskType={msg.taskConfig.taskType}
-                  onUpgradeClick={() => {
-                    window.location.href = msg.taskConfig.actionUrl
-                  }}
-                  isDark={true}
-                />
-              )}
-
-              {/* Inline Cancel Confirmation */}
-              {msg.isTask && msg.status === 'cancel_confirmation' && (
-                <CancelConfirmationCard
-                  runId={msg.runId}
-                  idx={idx}
-                  onDismissCancel={onDismissCancel}
-                  onCancelRun={onCancelRun}
-                />
-              )}
-
-            </div>
-
-            {/* Right side avatar for User */}
-            {isUser && (
-              <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-white/[0.06] flex items-center justify-center text-zinc-400 shrink-0 shadow-md">
-                <User size={15} />
-              </div>
-            )}
-
-          </div>
-        )
-      })}
+      {messages.map((msg, idx) => (
+        <MessageBubble
+          key={msg.id || idx}
+          msg={msg}
+          idx={idx}
+          onApprovePermission={onApprovePermission}
+          onRejectPermission={onRejectPermission}
+          onCancelRun={onCancelRun}
+          onSubmitCalibration={onSubmitCalibration}
+          onDismissCancel={onDismissCancel}
+        />
+      ))}
     </div>
   )
 }

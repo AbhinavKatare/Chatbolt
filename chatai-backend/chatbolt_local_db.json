@@ -7,7 +7,24 @@
       "email": "$2a$10$GzhFm3kNR9D8OHqE3B14aeYb/OegpEnuTzGUrwO8wlajHqn7WhzAe"
     }
   ],
-  "workflows": [],
+  "workflows": [
+    {
+      "id": "ad02c02b-b544-483d-9138-b212f82a3758",
+      "created_at": "2026-06-14T12:47:11.183Z",
+      "tenant_id": "d34930ea-af1a-4094-9082-b47df3fb8075",
+      "name": "Verify Test Workflow",
+      "original_prompt": "Research AI and write a report",
+      "type": "research"
+    },
+    {
+      "id": "d96cb8ab-6b07-431e-96dd-0160630ca4dd",
+      "created_at": "2026-06-14T19:26:57.955Z",
+      "tenant_id": "d34930ea-af1a-4094-9082-b47df3fb8075",
+      "name": "Verify Test Workflow",
+      "original_prompt": "Research AI and write a report",
+      "type": "research"
+    }
+  ],
   "workflow_agents": [
     {
       "id": "1e9886ab-f970-4df6-9262-929d186fb57e",
@@ -116,9 +133,218 @@
       "description": "Share the spreadsheet created in step2 with the team in the Slack #general channel",
       "system_prompt": "You are a reporter. Take the spreadsheet created in step2 and post it to the Slack #general channel. Include a brief message introducing the research, such as: 'Here’s a summary of the top 3 project management tools based on recent research. Feel free to review and share your thoughts!' Attach the spreadsheet file or provide a link to it.",
       "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"slack_api\"]}"
+    },
+    {
+      "id": "e2f9584b-0f67-4cf8-9beb-7f19851c2687",
+      "created_at": "2026-06-14T12:19:57.321Z",
+      "workflow_id": "dad44504-71d8-4e90-9397-eefee12e1979",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "position": 1,
+      "name": "Gather details of top 3 PM tools",
+      "role": "researcher",
+      "description": "Search the web for the top 3 project management tools, including features, pricing, and user reviews",
+      "system_prompt": "You are a researcher. Identify the top 3 project management tools currently available. For each tool, gather the following details: name, website, key features, pricing plans, and notable user reviews or ratings. Ensure the information is accurate and up-to-date.",
+      "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"web_search\"]}"
+    },
+    {
+      "id": "36e424e5-9b8e-4ea4-9167-1ae875f86d27",
+      "created_at": "2026-06-14T12:19:57.335Z",
+      "workflow_id": "dad44504-71d8-4e90-9397-eefee12e1979",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "position": 2,
+      "name": "Create spreadsheet with PM tools data",
+      "role": "spreadsheet",
+      "description": "Compile the details gathered in step1 into a structured spreadsheet",
+      "system_prompt": "You are a spreadsheet specialist. Take the results from step1 (details of the top 3 PM tools) and create a structured spreadsheet. Include columns for: Tool Name, Website, Key Features, Pricing Plans, and User Reviews/Ratings. Format the spreadsheet for clarity and ease of reading.",
+      "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"spreadsheet\"]}"
+    },
+    {
+      "id": "dcaff04f-96a4-458f-8911-7ea38f392b9d",
+      "created_at": "2026-06-14T12:19:57.348Z",
+      "workflow_id": "dad44504-71d8-4e90-9397-eefee12e1979",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "position": 3,
+      "name": "Post spreadsheet to Slack #general",
+      "role": "reporter",
+      "description": "Share the spreadsheet created in step2 in the Slack #general channel",
+      "system_prompt": "You are a reporter. Take the spreadsheet created in step2 and post it to the Slack #general channel. Include a brief message introducing the spreadsheet, such as: 'Here are the details of the top 3 project management tools currently available.' Ensure the spreadsheet is attached or linked appropriately.",
+      "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"slack_api\"]}"
+    },
+    {
+      "id": "3553fd50-860f-4357-89c4-0e32dd9acd72",
+      "created_at": "2026-06-14T12:47:11.201Z",
+      "workflow_id": "ad02c02b-b544-483d-9138-b212f82a3758",
+      "tenant_id": "d34930ea-af1a-4094-9082-b47df3fb8075",
+      "position": 1,
+      "name": "Research Agent",
+      "role": "researcher",
+      "description": "Research latest AI developments",
+      "system_prompt": "You are a research analyst. Research the given topic thoroughly and return a structured report with key findings, sources, and insights.",
+      "config": "{\"model\":\"Qwen/WebWorld-8B:featherless-ai\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[]}"
+    },
+    {
+      "id": "3db3b23a-9aba-4878-839d-8c3220bc9152",
+      "created_at": "2026-06-14T12:47:11.214Z",
+      "workflow_id": "ad02c02b-b544-483d-9138-b212f82a3758",
+      "tenant_id": "d34930ea-af1a-4094-9082-b47df3fb8075",
+      "position": 2,
+      "name": "Writer Agent",
+      "role": "writer",
+      "description": "Write a clear report from research",
+      "system_prompt": "You are a professional writer. Take the research provided and write a clear, structured report. Include: executive summary, key findings, and recommendations.",
+      "config": "{\"model\":\"Qwen/WebWorld-8B:featherless-ai\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[]}"
+    },
+    {
+      "id": "df8198f3-0168-411b-8a00-80ce79a8cde0",
+      "created_at": "2026-06-14T19:26:57.973Z",
+      "workflow_id": "d96cb8ab-6b07-431e-96dd-0160630ca4dd",
+      "tenant_id": "d34930ea-af1a-4094-9082-b47df3fb8075",
+      "position": 1,
+      "name": "Research Agent",
+      "role": "researcher",
+      "description": "Research latest AI developments",
+      "system_prompt": "You are a research analyst. Research the given topic thoroughly and return a structured report with key findings, sources, and insights.",
+      "config": "{\"model\":\"Qwen/WebWorld-8B:featherless-ai\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[]}"
+    },
+    {
+      "id": "33680863-d124-4650-b782-457551ba5449",
+      "created_at": "2026-06-14T19:26:57.996Z",
+      "workflow_id": "d96cb8ab-6b07-431e-96dd-0160630ca4dd",
+      "tenant_id": "d34930ea-af1a-4094-9082-b47df3fb8075",
+      "position": 2,
+      "name": "Writer Agent",
+      "role": "writer",
+      "description": "Write a clear report from research",
+      "system_prompt": "You are a professional writer. Take the research provided and write a clear, structured report. Include: executive summary, key findings, and recommendations.",
+      "config": "{\"model\":\"Qwen/WebWorld-8B:featherless-ai\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[]}"
+    },
+    {
+      "id": "2d9766ed-599f-4456-870d-bb09216d6f2d",
+      "created_at": "2026-06-15T17:04:35.132Z",
+      "workflow_id": "b593aa5e-fac9-4a79-83a8-eb77e9fd0423",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "position": 1,
+      "name": "Gather details on top 3 PM tools",
+      "role": "researcher",
+      "description": "Search the web for the top 3 project management tools, including features, pricing, and user reviews",
+      "system_prompt": "You are a researcher. Identify the top 3 project management tools currently available. For each tool, gather the following details: name, key features, pricing structure, user ratings, and a brief description. Ensure the information is accurate and up-to-date.",
+      "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"web_search\"]}"
+    },
+    {
+      "id": "973af10b-535e-46e1-a659-e929a4869fda",
+      "created_at": "2026-06-15T17:04:35.147Z",
+      "workflow_id": "b593aa5e-fac9-4a79-83a8-eb77e9fd0423",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "position": 2,
+      "name": "Create spreadsheet with PM tool details",
+      "role": "spreadsheet",
+      "description": "Take the results from step1 and compile them into a structured spreadsheet",
+      "system_prompt": "You are a spreadsheet specialist. Using the details gathered in step1, create a well-organized spreadsheet. Include columns for tool name, key features, pricing, user ratings, and description. Ensure the data is clearly formatted and easy to read.",
+      "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"spreadsheet\"]}"
+    },
+    {
+      "id": "2a8c30a9-256e-47dc-ba06-b9bf4d268e83",
+      "created_at": "2026-06-15T17:04:35.161Z",
+      "workflow_id": "b593aa5e-fac9-4a79-83a8-eb77e9fd0423",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "position": 3,
+      "name": "Post spreadsheet to Slack #general",
+      "role": "reporter",
+      "description": "Take the spreadsheet created in step2 and post it to the Slack #general channel",
+      "system_prompt": "You are responsible for sharing updates with the team. Take the spreadsheet created in step2 and post it to the Slack #general channel. Include a brief message summarizing the contents and purpose of the spreadsheet.",
+      "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"api-caller\"]}"
+    },
+    {
+      "id": "0f83bf4e-51f4-473e-b695-ec4ed037a730",
+      "created_at": "2026-06-15T17:41:31.065Z",
+      "workflow_id": "ae175ce8-c5d6-427e-bb8c-97702cc751a1",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "position": 1,
+      "name": "Gather details of top 3 PM tools",
+      "role": "researcher",
+      "description": "Search the web for the top 3 project management tools and collect key details such as features, pricing, and user ratings",
+      "system_prompt": "You are a researcher. Identify the top 3 project management tools currently available. For each tool, gather the following details: name, website URL, key features, pricing plans, and user ratings or reviews. Ensure the information is accurate and up-to-date.",
+      "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"web_search\"]}"
+    },
+    {
+      "id": "ffe7d0c5-1012-4f59-819c-b9d6ab6cffd2",
+      "created_at": "2026-06-15T17:41:31.102Z",
+      "workflow_id": "ae175ce8-c5d6-427e-bb8c-97702cc751a1",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "position": 2,
+      "name": "Create spreadsheet with PM tools data",
+      "role": "spreadsheet",
+      "description": "Take the results from step1 and compile them into a structured spreadsheet with columns for name, URL, features, pricing, and ratings",
+      "system_prompt": "You are a spreadsheet specialist. Take the details of the top 3 project management tools gathered in step1 and create a structured spreadsheet. Include columns for: Tool Name, Website URL, Key Features, Pricing Plans, and User Ratings. Ensure the data is well-organized and easy to read.",
+      "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"spreadsheet\"]}"
+    },
+    {
+      "id": "27f29b0c-b49f-4989-a82f-dbc6521b6789",
+      "created_at": "2026-06-15T17:41:31.148Z",
+      "workflow_id": "ae175ce8-c5d6-427e-bb8c-97702cc751a1",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "position": 3,
+      "name": "Post spreadsheet to Slack #general",
+      "role": "reporter",
+      "description": "Take the spreadsheet created in step2 and post it to the Slack #general channel with a brief summary",
+      "system_prompt": "You are a reporter. Take the spreadsheet created in step2 and post it to the Slack #general channel. Include a brief message summarizing the key details of the top 3 project management tools and attach the spreadsheet for reference.",
+      "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"slack_api\"]}"
+    },
+    {
+      "id": "6bd87433-da39-4488-8ba3-b803f6d06d31",
+      "created_at": "2026-06-15T17:44:15.393Z",
+      "workflow_id": "b155dc85-98be-4e31-9af3-b045ff019adf",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "position": 1,
+      "name": "Gather details on top 3 PM tools",
+      "role": "researcher",
+      "description": "Search the web for the top 3 project management tools and collect key features, pricing, and user ratings for each",
+      "system_prompt": "You are a researcher tasked with identifying the top 3 project management tools. Use web search to find the most popular tools based on user reviews, industry reports, and expert recommendations. For each tool, gather the following details: name, key features, pricing (free/paid tiers), user ratings, and a brief description. Ensure the information is accurate and up-to-date.",
+      "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"web_search\"]}"
+    },
+    {
+      "id": "5441f64b-a7ae-4e7a-8294-92646462f93d",
+      "created_at": "2026-06-15T17:44:15.408Z",
+      "workflow_id": "b155dc85-98be-4e31-9af3-b045ff019adf",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "position": 2,
+      "name": "Create spreadsheet with PM tools data",
+      "role": "spreadsheet",
+      "description": "Take the results from step1 and compile them into a structured spreadsheet with columns for tool name, features, pricing, ratings, and description",
+      "system_prompt": "You are a spreadsheet specialist. Take the results from step1 (details of the top 3 PM tools) and create a structured spreadsheet. The spreadsheet should include the following columns: Tool Name, Key Features, Pricing, User Ratings, and Description. Ensure the data is well-organized and easy to read. Save the spreadsheet in a format that can be easily shared (e.g., CSV or Excel).",
+      "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"spreadsheet\"]}"
+    },
+    {
+      "id": "3ffd06c0-38d5-4227-ac37-06a5a2c7ff38",
+      "created_at": "2026-06-15T17:44:15.432Z",
+      "workflow_id": "b155dc85-98be-4e31-9af3-b045ff019adf",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "position": 3,
+      "name": "Post spreadsheet to Slack #general",
+      "role": "reporter",
+      "description": "Take the spreadsheet created in step2 and post it to the Slack #general channel with a brief message summarizing the findings",
+      "system_prompt": "You are a reporter tasked with sharing the results of the PM tools research. Take the spreadsheet created in step2 and post it to the Slack #general channel. Include a brief message summarizing the key findings, such as the top 3 tools and their standout features. Ensure the message is clear and concise, and attach the spreadsheet for reference.",
+      "config": "{\"model\":\"meta/llama-3.1-8b-instruct\",\"temperature\":0.3,\"max_tokens\":2000,\"tools_needed\":[\"api_caller\"]}"
     }
   ],
-  "workflow_runs": [],
+  "workflow_runs": [
+    {
+      "id": "6d0979dc-1f80-427a-907a-74b3eee8796c",
+      "created_at": "2026-06-14T12:47:11.233Z",
+      "workflow_id": "ad02c02b-b544-483d-9138-b212f82a3758",
+      "tenant_id": "d34930ea-af1a-4094-9082-b47df3fb8075",
+      "input_data": "{\"topic\":\"latest AI tools 2025\"}",
+      "status": null
+    },
+    {
+      "id": "72b5abee-ca01-4515-a235-cff7e96b6ca1",
+      "created_at": "2026-06-14T19:26:58.020Z",
+      "workflow_id": "d96cb8ab-6b07-431e-96dd-0160630ca4dd",
+      "tenant_id": "d34930ea-af1a-4094-9082-b47df3fb8075",
+      "input_data": "{\"topic\":\"latest AI tools 2025\"}",
+      "status": null
+    }
+  ],
   "workflow_steps": [],
   "agent_heartbeats": [],
   "memory_entities": [],
@@ -152,6 +378,51 @@
       "run_id": "e443cd86-1927-42df-8399-2e5ec3f36503",
       "job_type": "workflow",
       "payload": "{\"runId\":\"e443cd86-1927-42df-8399-2e5ec3f36503\",\"workflowId\":\"7b82b3cf-9c83-456d-adf6-8112838e4d3a\",\"tenantId\":\"00000000-0000-0000-0000-000000000000\",\"userInputs\":{},\"isLangGraph\":true}"
+    },
+    {
+      "id": "9c00996d-9392-4197-b9f5-1cb2c455b25c",
+      "run_id": "92cbc5c4-df7e-4353-bf56-559cd5ca971f",
+      "job_type": "workflow",
+      "payload": "{\"runId\":\"92cbc5c4-df7e-4353-bf56-559cd5ca971f\",\"workflowId\":\"dad44504-71d8-4e90-9397-eefee12e1979\",\"tenantId\":\"00000000-0000-0000-0000-000000000000\",\"userInputs\":{},\"isLangGraph\":true}"
+    },
+    {
+      "id": "8669a254-e543-4353-a552-f2f721f36269",
+      "run_id": "6d0979dc-1f80-427a-907a-74b3eee8796c",
+      "job_type": "workflow",
+      "payload": "{\"runId\":\"6d0979dc-1f80-427a-907a-74b3eee8796c\",\"workflowId\":\"ad02c02b-b544-483d-9138-b212f82a3758\",\"tenantId\":\"d34930ea-af1a-4094-9082-b47df3fb8075\",\"userInputs\":{\"topic\":\"latest AI tools 2025\"},\"isLangGraph\":true}"
+    },
+    {
+      "id": "da5beadb-e765-48a1-861f-9fd94d58eb43",
+      "run_id": "72b5abee-ca01-4515-a235-cff7e96b6ca1",
+      "job_type": "workflow",
+      "payload": "{\"runId\":\"72b5abee-ca01-4515-a235-cff7e96b6ca1\",\"workflowId\":\"d96cb8ab-6b07-431e-96dd-0160630ca4dd\",\"tenantId\":\"d34930ea-af1a-4094-9082-b47df3fb8075\",\"userInputs\":{\"topic\":\"latest AI tools 2025\"},\"isLangGraph\":true}"
+    },
+    {
+      "id": "b98af54c-9956-4e0a-912d-a22b59e3216b",
+      "created_at": "2026-06-15T17:04:35.177Z",
+      "run_id": "a448d27e-18b4-4fb1-9196-804d659c9fd0",
+      "job_type": "workflow",
+      "payload": "{\"runId\":\"a448d27e-18b4-4fb1-9196-804d659c9fd0\",\"workflowId\":\"b593aa5e-fac9-4a79-83a8-eb77e9fd0423\",\"tenantId\":\"00000000-0000-0000-0000-000000000000\",\"userInputs\":{},\"isLangGraph\":true}",
+      "status": "pending",
+      "run_at": "2026-06-15T17:04:35.177Z"
+    },
+    {
+      "id": "4e728e63-5f7c-4259-9c2b-905124000260",
+      "created_at": "2026-06-15T17:41:31.182Z",
+      "run_id": "d741116a-81ce-4e17-871b-3f23d5b2a8f5",
+      "job_type": "workflow",
+      "payload": "{\"runId\":\"d741116a-81ce-4e17-871b-3f23d5b2a8f5\",\"workflowId\":\"ae175ce8-c5d6-427e-bb8c-97702cc751a1\",\"tenantId\":\"00000000-0000-0000-0000-000000000000\",\"userInputs\":{},\"isLangGraph\":true}",
+      "status": "pending",
+      "run_at": "2026-06-15T17:41:31.182Z"
+    },
+    {
+      "id": "af7e783a-be25-4f0d-acc2-f1e629a3e4c7",
+      "created_at": "2026-06-15T17:44:15.449Z",
+      "run_id": "e9c96b31-460d-4ada-896c-8eb3c21f137e",
+      "job_type": "workflow",
+      "payload": "{\"runId\":\"e9c96b31-460d-4ada-896c-8eb3c21f137e\",\"workflowId\":\"b155dc85-98be-4e31-9af3-b045ff019adf\",\"tenantId\":\"00000000-0000-0000-0000-000000000000\",\"userInputs\":{},\"isLangGraph\":true}",
+      "status": "pending",
+      "run_at": "2026-06-15T17:44:15.449Z"
     }
   ],
   "usage_counters": [
@@ -210,6 +481,46 @@
       "payload": "{\"prompt\":\"Research top 3 PM tools, build spreadsheet, post to Slack #general\",\"workflow_id\":\"7b82b3cf-9c83-456d-adf6-8112838e4d3a\",\"estimated_steps\":3}",
       "parent_hash": "5fd46deb511597f56f6e6b34f7f732fc23abb5eb89b6971957d2a85de0f4c225",
       "current_hash": "a38913b508bf7a3e879c1f33ae2efa6d675d4921f3aa490e476fbc595b8a8236"
+    },
+    {
+      "id": "726ab7aa-30cf-4738-95e7-64ef22101918",
+      "created_at": "2026-06-14T12:19:57.404Z",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "run_id": "92cbc5c4-df7e-4353-bf56-559cd5ca971f",
+      "event_type": "TASK_ROUTED_AND_LAUNCHED",
+      "payload": "{\"prompt\":\"Research top 3 PM tools, build spreadsheet, post to Slack #general\",\"workflow_id\":\"dad44504-71d8-4e90-9397-eefee12e1979\",\"estimated_steps\":4}",
+      "parent_hash": "a38913b508bf7a3e879c1f33ae2efa6d675d4921f3aa490e476fbc595b8a8236",
+      "current_hash": "5e127ccb0222dfbcae225f2e0e43f517b02651c28f2213b67919d7cf928f234e"
+    },
+    {
+      "id": "d25e5d06-458a-4629-8d36-e3735fe23125",
+      "created_at": "2026-06-15T17:04:35.213Z",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "run_id": "a448d27e-18b4-4fb1-9196-804d659c9fd0",
+      "event_type": "TASK_ROUTED_AND_LAUNCHED",
+      "payload": "{\"prompt\":\"Research top 3 PM tools, build spreadsheet, post to Slack #general\",\"workflow_id\":\"b593aa5e-fac9-4a79-83a8-eb77e9fd0423\",\"estimated_steps\":3}",
+      "parent_hash": "5e127ccb0222dfbcae225f2e0e43f517b02651c28f2213b67919d7cf928f234e",
+      "current_hash": "332c2be8308620e62ee1739df0c215a866dcaa4ae2d6d2be127566ba375bdd34"
+    },
+    {
+      "id": "687bde4c-d9e1-4d7e-bd76-7178a6ff3cb0",
+      "created_at": "2026-06-15T17:41:31.258Z",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "run_id": "d741116a-81ce-4e17-871b-3f23d5b2a8f5",
+      "event_type": "TASK_ROUTED_AND_LAUNCHED",
+      "payload": "{\"prompt\":\"Research top 3 PM tools, build spreadsheet, post to Slack #general\",\"workflow_id\":\"ae175ce8-c5d6-427e-bb8c-97702cc751a1\",\"estimated_steps\":4}",
+      "parent_hash": "332c2be8308620e62ee1739df0c215a866dcaa4ae2d6d2be127566ba375bdd34",
+      "current_hash": "3d82a41956d7e5ed959a79c86e4427af284789e69f2969d796df8e3e455e283e"
+    },
+    {
+      "id": "1f118a27-75d6-42be-a627-4d0d07aea14e",
+      "created_at": "2026-06-15T17:44:15.481Z",
+      "tenant_id": "00000000-0000-0000-0000-000000000000",
+      "run_id": "e9c96b31-460d-4ada-896c-8eb3c21f137e",
+      "event_type": "TASK_ROUTED_AND_LAUNCHED",
+      "payload": "{\"prompt\":\"Research top 3 PM tools, build spreadsheet, post to Slack #general\",\"workflow_id\":\"b155dc85-98be-4e31-9af3-b045ff019adf\",\"estimated_steps\":3}",
+      "parent_hash": "3d82a41956d7e5ed959a79c86e4427af284789e69f2969d796df8e3e455e283e",
+      "current_hash": "8b9a9e800d94d876e43b77dd02508adc1d95d40b8f2d3444756f3bd5a36ee8e7"
     }
   ],
   "workspaces": [],
@@ -309,6 +620,23 @@
       "category": "preference",
       "importance": 7,
       "embedding": "[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]"
+    }
+  ],
+  "agents": [],
+  "execution_metrics": [
+    {
+      "id": "036f727f-d104-40ff-9f9d-001fd526a483",
+      "created_at": "2026-06-14T19:19:35.927Z",
+      "user_id": "00000000-0000-0000-0000-000000000000",
+      "run_id": null,
+      "task_type": 1
+    },
+    {
+      "id": "aedcf249-d35e-42c2-b396-9efe3cdeb8de",
+      "created_at": "2026-06-14T19:27:59.048Z",
+      "user_id": "00000000-0000-0000-0000-000000000000",
+      "run_id": null,
+      "task_type": 2
     }
   ]
 }

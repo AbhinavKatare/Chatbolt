@@ -534,7 +534,6 @@ export async function handleExecuteV2(options: {
 
   // 9. Enqueue workflow run (Step 4)
   const runId = await queueService.enqueueWorkflowRun(workflow.id, tenantId, inputs)
-  await billingService.incrementUsage(tenantId, 'tasks')
 
   if (billingCheck.overage) {
     runEmitter.emitEvent(runId, 'agent_progress', {

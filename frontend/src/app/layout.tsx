@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import Footer from '@/components/Footer'
 import Script from 'next/script'
+import SessionListener from '@/components/SessionListener'
 
 export const metadata: Metadata = {
   title: 'Chatbolt — Customer Support Platform',
@@ -14,6 +15,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {analyticsId && (
           <Script
             id="analytics-init"
@@ -31,6 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         )}
       </head>
       <body className="antialiased bg-[#F9F9F9] text-[#1A1A1A] min-h-screen flex flex-col">
+        <SessionListener />
         <main className="flex-1">{children}</main>
         <Footer />
       </body>

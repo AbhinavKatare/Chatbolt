@@ -221,6 +221,13 @@ export async function transitionWorkflowRun(
     let isTemplateCandidate = false
     if (toState === 'COMPLETED') {
       try {
+        const { billingService } = await import('./billing.service')
+        await billingService.incrementUsage(tenantId, 'tasks')
+      } catch (billErr: any) {
+        logger.warn('[State Machine] Failed to increment usage on completion: ' + billErr.message)
+      }
+
+      try {
         const { extractAndStoreSessionFacts } = await import('./memory.service')
         
         const runQuery = await client.query(

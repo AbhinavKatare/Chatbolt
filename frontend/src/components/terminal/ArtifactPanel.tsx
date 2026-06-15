@@ -53,7 +53,7 @@ export default function ArtifactPanel({ artifact, onClose }: ArtifactPanelProps)
   const isImage = artifact.type === 'screenshot' || artifact.type === 'image' || artifact.name.endsWith('.png') || artifact.name.endsWith('.jpg') || artifact.name.endsWith('.jpeg')
 
   return (
-    <div className="artifact-panel h-full bg-[#0C0C0E] border-l border-white/[0.06] flex flex-col animate-in slide-in-from-right duration-300">
+    <div className="artifact-panel h-full bg-[var(--color-surface)] border-l border-white/[0.06] flex flex-col animate-in slide-in-from-right duration-300">
       <style>{`
         @media (max-width: 768px) {
           .artifact-panel {
@@ -63,7 +63,7 @@ export default function ArtifactPanel({ artifact, onClose }: ArtifactPanelProps)
             width: 100% !important;
             height: 60vh !important;
             border-left: none !important;
-            border-top: 1px border border-white/[0.06] !important;
+            border-top: 1px solid rgba(255,255,255,0.06) !important;
             border-top-left-radius: 1rem !important;
             border-top-right-radius: 1rem !important;
             z-index: 100 !important;
@@ -89,7 +89,7 @@ export default function ArtifactPanel({ artifact, onClose }: ArtifactPanelProps)
       {/* Panel Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
         <div className="flex items-center gap-2">
-          <FileText className="text-[#00E599]" size={16} />
+          <FileText className="text-[var(--color-accent)]" size={16} />
           <h4 className="text-[12px] font-bold text-white truncate max-w-[200px]" title={artifact.name}>
             {artifact.name}
           </h4>
@@ -127,7 +127,7 @@ export default function ArtifactPanel({ artifact, onClose }: ArtifactPanelProps)
       </div>
 
       {/* Renderers content area */}
-      <div className="flex-1 overflow-auto p-5 custom-scrollbar min-h-0 bg-[#070709]">
+      <div className="flex-1 overflow-auto p-5 custom-scrollbar min-h-0 bg-[var(--color-bg)]">
         
         {/* Sandboxed HTML Frame */}
         {isHtml && (
@@ -143,9 +143,9 @@ export default function ArtifactPanel({ artifact, onClose }: ArtifactPanelProps)
 
         {/* CSV Render Table */}
         {isCsv && csvRows.length > 0 && (
-          <div className="w-full border border-white/[0.06] rounded-xl overflow-hidden bg-[#0C0C0E] max-h-full overflow-auto custom-scrollbar">
+          <div className="w-full border border-white/[0.06] rounded-xl overflow-hidden bg-[var(--color-surface)] max-h-full overflow-auto custom-scrollbar">
             <table className="w-full border-collapse text-left text-[11px] text-zinc-300">
-              <thead className="bg-[#141418] text-white font-bold sticky top-0 border-b border-white/[0.06]">
+              <thead className="bg-[var(--color-surface)] text-white font-bold sticky top-0 border-b border-white/[0.06]">
                 <tr>
                   {csvRows[0].map((header, idx) => (
                     <th key={idx} className="p-3 border-r border-white/[0.04] font-black tracking-wider uppercase text-[9px]">
@@ -171,7 +171,7 @@ export default function ArtifactPanel({ artifact, onClose }: ArtifactPanelProps)
 
         {/* Image / Screenshot Viewer */}
         {isImage && (
-          <div className="w-full h-full flex items-center justify-center border border-white/[0.06] rounded-xl overflow-hidden bg-[#0C0C0E] p-2">
+          <div className="w-full h-full flex items-center justify-center border border-white/[0.06] rounded-xl overflow-hidden bg-[var(--color-surface)] p-2">
             <img
               src={artifact.content}
               alt={artifact.name}
@@ -182,16 +182,16 @@ export default function ArtifactPanel({ artifact, onClose }: ArtifactPanelProps)
 
         {/* Code / Text Viewer */}
         {!isHtml && !isCsv && !isImage && (
-          <div className="relative border border-white/[0.06] rounded-xl bg-[#0C0C0E] p-4.5 font-mono text-[11px] text-zinc-300 overflow-auto leading-relaxed custom-scrollbar">
+          <div className="relative border border-white/[0.06] rounded-xl bg-[var(--color-surface)] p-4.5 font-mono text-[11px] text-zinc-300 overflow-auto leading-relaxed custom-scrollbar">
             {artifact.content && (
               <button
                 onClick={handleCopy}
-                className="absolute top-3 right-3 p-1.5 bg-[#141418] hover:bg-zinc-800 border border-white/[0.06] rounded-lg text-zinc-400 hover:text-white transition-all flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest px-2.5 cursor-pointer"
+                className="absolute top-3 right-3 p-1.5 bg-[var(--color-surface)] hover:bg-zinc-800 border border-white/[0.06] rounded-lg text-zinc-400 hover:text-white transition-all flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest px-2.5 cursor-pointer"
               >
                 {copied ? (
                   <>
-                    <Check size={11} className="text-[#00E599]" />
-                    <span className="text-[#00E599]">{TERMINAL_STRINGS.copied}</span>
+                    <Check size={11} className="text-[var(--color-success)]" />
+                    <span className="text-[var(--color-success)]">{TERMINAL_STRINGS.copied}</span>
                   </>
                 ) : (
                   <>

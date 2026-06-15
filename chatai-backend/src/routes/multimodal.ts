@@ -2,10 +2,19 @@ import { Router, Request, Response } from 'express'
 import { authMiddleware } from '../middleware/auth.middleware'
 import { logger } from '../services/logger.service'
 import rateLimit from 'express-rate-limit'
+import multer from 'multer'
+import pdfParse from 'pdf-parse'
+import mammoth from 'mammoth'
+import ExcelJS from 'exceljs'
 
 const router = Router()
 
 const scrapeLimit = rateLimit({ windowMs: 60 * 1000, max: 30, message: { error: 'Scrape rate limit exceeded' } })
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 } // 25MB
+})
 
 // ── POST /multimodal/scrape-url ────────────────────────────────────────────────
 // Fetches a URL and extracts clean text content
@@ -74,7 +83,7 @@ router.post('/scrape-url', authMiddleware, scrapeLimit, async (req: Request, res
     const title = titleMatch?.[1]?.trim() || parsedUrl.hostname
 
     // Extract meta description
-    const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)
+    const descMatch = html.match(/<meta[^+]+name=["']description["'][^+]+content=["']([^"']+)["']/i)
     const description = descMatch?.[1]?.trim() || ''
 
     // Trim to max 8000 chars for context use
@@ -141,6 +150,84 @@ router.post('/describe-image', authMiddleware, async (req: Request, res: Respons
   } catch (err: any) {
     logger.error('[Multimodal] Vision error:', err.message)
     return res.status(500).json({ error: 'Image description failed' })
+  }
+})
+
+// ── POST /multimodal/upload ───────────────────────────────────────────
+// Accepts files (PDF, DOCX, XLSX, CSV, images, text) and returns parsed content
+
+router.post('/upload', authMiddleware, upload.single('file'), async (req: Request, res: Response) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'file is required' })
+  }
+
+  const file = req.file
+  const filename = file.originalname.toLowerCase()
+  const mime = file.mimetype.toLowerCase()
+
+  try {
+    let parsedText = ''
+
+    if (mime.includes('pdf') || filename.endsWith('.pdf')) {
+      const parsedPdf = await pdfParse(Buffer.from(file.buffer))
+      parsedText = parsedPdf.text || ''
+    } 
+    else if (mime.includes('word') || filename.endsWith('.docx')) {
+      const docxResult = await mammoth.extractRawText({ buffer: Buffer.from(file.buffer) })
+      parsedText = docxResult.value || ''
+    } 
+    else if (mime.includes('sheet') || mime.includes('excel') || filename.endsWith('.xlsx') || filename.endsWith('.xls')) {
+      const workbook = new ExcelJS.Workbook()
+      await workbook.xlsx.load(Buffer.from(file.buffer) as any)
+      let sheetTexts: string[] = []
+      workbook.eachSheet((sheet) => {
+        sheetTexts.push(`Sheet: ${sheet.name}`)
+        sheet.eachRow((row) => {
+          const rowVals = Array.isArray(row.values) 
+            ? row.values.slice(1) 
+            : Object.values(row.values || {})
+          sheetTexts.push(rowVals.join(', '))
+        })
+      })
+      parsedText = sheetTexts.join('\n')
+    } 
+    else if (mime.startsWith('image/')) {
+      const base64 = file.buffer.toString('base64')
+      const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY
+      const baseUrl = process.env.OPENROUTER_API_KEY ? 'https://openrouter.ai/api/v1' : 'https://api.openai.com/v1'
+      const model = process.env.OPENROUTER_API_KEY ? 'openai/gpt-4o' : 'gpt-4o'
+
+      if (!apiKey) {
+        return res.status(503).json({ error: 'Vision AI is not configured to parse images' })
+      }
+
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image_url', image_url: { url: `data:${mime};base64,${base64}` } },
+              { type: 'text', text: 'Describe this image in detail, including any text, charts, or data you see.' },
+            ],
+          }],
+          max_tokens: 500,
+        }),
+      }).then(r => r.json())
+
+      parsedText = response.choices?.[0]?.message?.content || 'Could not describe image.'
+    } 
+    else {
+      // Treat as plain text / markdown / CSV
+      parsedText = file.buffer.toString('utf8')
+    }
+
+    return res.json({ text: parsedText })
+  } catch (err: any) {
+    logger.error(`[Multimodal] File upload parsing failed for ${file.originalname}:`, err.message)
+    return res.status(500).json({ error: `Failed to parse file: ${err.message}` })
   }
 })
 

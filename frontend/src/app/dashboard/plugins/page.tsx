@@ -307,8 +307,8 @@ export default function PluginsPage() {
                         </div>
                         <p className="text-[10px] text-zinc-500 mt-1 font-semibold leading-relaxed line-clamp-2">{p.description}</p>
                         {isBrowser && active && (
-                          <span className="text-[9px] text-[#22c55e] font-bold uppercase mt-1 flex items-center gap-1">
-                            <span className="w-1 h-1 bg-[#22c55e] rounded-full" /> Connected to Chrome
+                          <span className="text-[9px] text-[#1D9E75] font-bold uppercase mt-1 flex items-center gap-1">
+                            <span className="w-1 h-1 bg-[#1D9E75] rounded-full" /> Connected to Chrome
                           </span>
                         )}
                       </div>
@@ -318,7 +318,7 @@ export default function PluginsPage() {
                       {active ? (
                         <button 
                           onClick={() => handleDisconnect(p.service, p.display_name)}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#22c55e]/10 border border-[#22c55e]/20 text-[#22c55e] hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500 transition-all group"
+                          className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#1D9E75]/10 border border-[#1D9E75]/20 text-[#1D9E75] hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500 transition-all group"
                           title="Disconnect connector"
                         >
                           <CheckCircle2 size={14} className="group-hover:hidden" />

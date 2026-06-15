@@ -35,10 +35,10 @@ export default function SettingsModal({ isOpen, onClose, userEmail }: SettingsMo
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal Box */}
-      <div className="relative w-full max-w-4xl h-[560px] bg-[#0D0D11] border border-white/[0.08] rounded-2xl flex overflow-hidden shadow-2xl text-zinc-300 font-sans z-10 animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-4xl h-[560px] bg-[var(--color-surface)] border border-white/[0.08] rounded-2xl flex overflow-hidden shadow-2xl text-zinc-300 font-sans z-10 animate-in fade-in zoom-in-95 duration-200">
         
         {/* Left Side Sidebar */}
-        <aside className="w-56 border-r border-white/[0.05] bg-[#070709] p-4 flex flex-col justify-between shrink-0">
+        <aside className="w-56 border-r border-white/[0.05] bg-[var(--color-bg)] p-4 flex flex-col justify-between shrink-0">
           <div className="space-y-6">
             {/* Profile Summary */}
             <div className="flex items-center gap-3 px-2 py-1 hover:bg-white/[0.02] rounded-xl transition-all">
@@ -70,7 +70,7 @@ export default function SettingsModal({ isOpen, onClose, userEmail }: SettingsMo
                         : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]'
                     }`}
                   >
-                    <item.icon size={13} className={activeMenu === item.name ? 'text-[#00E599]' : ''} />
+                    <item.icon size={13} className={activeMenu === item.name ? 'text-[var(--color-accent)]' : ''} />
                     {item.name}
                   </button>
                 ))}
@@ -95,7 +95,7 @@ export default function SettingsModal({ isOpen, onClose, userEmail }: SettingsMo
                         : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]'
                     }`}
                   >
-                    <item.icon size={13} className={activeMenu === item.name ? 'text-[#00E599]' : ''} />
+                    <item.icon size={13} className={activeMenu === item.name ? 'text-[var(--color-accent)]' : ''} />
                     {item.name}
                   </button>
                 ))}
@@ -111,7 +111,7 @@ export default function SettingsModal({ isOpen, onClose, userEmail }: SettingsMo
         </aside>
 
         {/* Right Side Settings Panel */}
-        <main className="flex-1 bg-[#0D0D11] p-8 overflow-y-auto custom-scrollbar flex flex-col justify-between">
+        <main className="flex-1 bg-[var(--color-surface)] p-8 overflow-y-auto custom-scrollbar flex flex-col justify-between">
           <div className="space-y-6">
             
             {/* Header Title */}
@@ -166,11 +166,11 @@ export default function SettingsModal({ isOpen, onClose, userEmail }: SettingsMo
                       className="bg-white/[0.01] hover:bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 flex items-center justify-between cursor-pointer group transition-all"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-[#00E599]">
+                        <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-[var(--color-accent)]">
                           <Import size={15} />
                         </div>
                         <div>
-                          <div className="text-xs font-bold text-white group-hover:text-[#00E599] transition-colors">Import memory from another AI</div>
+                          <div className="text-xs font-bold text-white group-hover:text-[var(--color-accent)] transition-colors">Import memory from another AI</div>
                           <div className="text-[10px] text-zinc-500 mt-0.5">Auto-fill your profile using conversations from other AI providers.</div>
                         </div>
                       </div>
@@ -185,7 +185,7 @@ export default function SettingsModal({ isOpen, onClose, userEmail }: SettingsMo
                           type="text"
                           value={nickname}
                           onChange={e => setNickname(e.target.value)}
-                          className="w-full bg-black/40 border border-white/[0.06] rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-[#00E599]/30 outline-none transition-all"
+                          className="w-full bg-black/40 border border-white/[0.06] rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-[var(--color-accent)]/30 outline-none transition-all"
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -194,7 +194,7 @@ export default function SettingsModal({ isOpen, onClose, userEmail }: SettingsMo
                           type="text"
                           value={occupation}
                           onChange={e => setOccupation(e.target.value)}
-                          className="w-full bg-black/40 border border-white/[0.06] rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-[#00E599]/30 outline-none transition-all"
+                          className="w-full bg-black/40 border border-white/[0.06] rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-[var(--color-accent)]/30 outline-none transition-all"
                         />
                       </div>
                     </div>
@@ -204,7 +204,7 @@ export default function SettingsModal({ isOpen, onClose, userEmail }: SettingsMo
                       <textarea
                         value={aboutMe}
                         onChange={e => setAboutMe(e.target.value)}
-                        className="w-full h-24 bg-black/40 border border-white/[0.06] rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-[#00E599]/30 outline-none resize-none custom-scrollbar"
+                        className="w-full h-24 bg-black/40 border border-white/[0.06] rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-[var(--color-accent)]/30 outline-none resize-none custom-scrollbar"
                       />
                     </div>
                   </div>
@@ -235,7 +235,7 @@ export default function SettingsModal({ isOpen, onClose, userEmail }: SettingsMo
               </button>
               <button 
                 onClick={handleSave}
-                className="px-4 py-2 bg-[#00E599] text-black font-black uppercase text-xs tracking-widest rounded-xl hover:bg-[#00E599]/90"
+                className="px-4 py-2 bg-[var(--color-accent)] text-black font-black uppercase text-xs tracking-widest rounded-xl hover:bg-[var(--color-accent)]/90"
               >
                 Save Changes
               </button>

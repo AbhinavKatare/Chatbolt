@@ -147,7 +147,7 @@ export class CalendarAgent {
     }
   }
 
-  async createEvent(userId: string, event: CreateEventInput): Promise<string> {
+  async createEvent(userId: string, event: CreateEventInput, runId?: string): Promise<string> {
     logger.info(`[CalendarAgent] createEvent called: "${event.title}"`)
     try {
       const calendar = await this.getCalendarClient(userId)
@@ -165,6 +165,26 @@ export class CalendarAgent {
           }
         })
         eventId = response.data.id!
+      }
+
+      if (runId) {
+        try {
+          const { actionJournalService } = await import('../services/action-journal.service')
+          await actionJournalService.recordAction({
+            userId,
+            runId,
+            actionType: 'calendar_create',
+            actionPayload: {
+              event_id: eventId,
+              title: event.title,
+              startTime: event.startTime,
+              endTime: event.endTime
+            },
+            isReversible: true
+          })
+        } catch (logErr: any) {
+          logger.warn('Failed to log calendar action in journal:', logErr.message)
+        }
       }
 
       return eventId
@@ -331,15 +351,7 @@ export async function runCalendarAgent(
         startTime: start,
         endTime: end,
         attendees: decision.attendees
-      })
-
-      // Log in Action Journal for undoability
-      try {
-        const { actionJournalService } = await import('../services/action-journal.service')
-        await actionJournalService.logAction(tenantId, runId, isOutlook ? 'outlook_calendar_create' : 'calendar_create', { event_id: eventId })
-      } catch (logErr: any) {
-        logger.warn('Failed to log calendar event in journal:', logErr.message)
-      }
+      }, runId)
 
       data = { status: 'created', eventId }
     } else {

@@ -147,4 +147,13 @@ router.put('/profile', authMiddleware, async (req: Request, res: Response) => {
   }
 })
 
+// GET /auth/verify
+router.get('/verify', authMiddleware, async (req: Request, res: Response) => {
+  res.json({
+    valid: true,
+    tenant: req.tenant,
+    user: (req as any).user
+  })
+})
+
 export default router

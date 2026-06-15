@@ -47,11 +47,11 @@ export default function Stats() {
         {/* Customer story */}
         <div
           className="aos rounded-3xl p-8 md:p-12 relative overflow-hidden grid grid-cols-1 md:grid-cols-2 gap-8 items-center"
-          style={{ background: 'linear-gradient(135deg, rgba(184,255,0,0.08) 0%, rgba(184,255,0,0.02) 100%)', border: '1px solid rgba(184,255,0,0.15)' }}
+          style={{ background: 'linear-gradient(135deg, rgba(83,74,183,0.08) 0%, rgba(83,74,183,0.02) 100%)', border: '1px solid rgba(83,74,183,0.15)' }}
         >
           {/* Decorative glow */}
           <div className="absolute top-0 right-0 w-64 h-64 rounded-full pointer-events-none"
-            style={{ background: 'radial-gradient(circle, rgba(184,255,0,0.1) 0%, transparent 70%)' }} />
+            style={{ background: 'radial-gradient(circle, rgba(83,74,183,0.1) 0%, transparent 70%)' }} />
 
           <div className="relative z-10">
             <div className="flex justify-center mb-4">
@@ -65,7 +65,7 @@ export default function Stats() {
             </blockquote>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full flex items-center justify-center font-700 text-sm"
-                style={{ background: '#B8FF00', color: '#0A0A0A' }}>JS</div>
+                style={{ background: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>JS</div>
               <div>
                 <div className="text-sm text-[#1A1A1A] font-600">Johnny Sandoval</div>
                 <div className="text-xs text-gray-500">CTO, Velo Commerce</div>
@@ -77,9 +77,9 @@ export default function Stats() {
           <div className="relative rounded-2xl overflow-hidden aspect-video flex items-center justify-center"
             style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)' }}>
             <div className="w-14 h-14 rounded-full flex items-center justify-center cursor-pointer transition-transform hover:scale-105"
-              style={{ background: 'rgba(184,255,0,0.9)' }}>
+              style={{ background: 'rgba(83,74,183,0.9)' }}>
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M6 4l10 6-10 6V4z" fill="#0A0A0A"/>
+                <path d="M6 4l10 6-10 6V4z" fill="var(--color-text-primary)"/>
               </svg>
             </div>
             <div className="absolute bottom-4 left-4">

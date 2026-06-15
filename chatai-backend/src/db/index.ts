@@ -378,6 +378,8 @@ function emulateQuery(sql: string, params: any[] = []): any[] {
               rows.forEach(r => { r[col] = val })
             } else if (valStr.toUpperCase() === 'NOW()') {
               rows.forEach(r => { r[col] = new Date().toISOString() })
+            } else if (valStr.toLowerCase().replace(/\s+/g, '') === `${col}+1`) {
+              rows.forEach(r => { r[col] = (Number(r[col]) || 0) + 1 })
             } else {
               const cleanVal = valStr.replace(/^['"]|['"]$/g, '')
               rows.forEach(r => { r[col] = cleanVal })

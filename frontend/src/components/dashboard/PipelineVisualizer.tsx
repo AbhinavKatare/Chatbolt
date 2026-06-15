@@ -41,16 +41,16 @@ export function PipelineVisualizer({ agents, steps, currentRunId }: PipelineVisu
               <div 
                 className={`
                   w-20 h-20 rounded-2xl border-2 flex flex-col items-center justify-center transition-all duration-500 relative
-                  ${status === 'running' ? 'border-[#00DFB8] bg-[#00DFB8]/5 shadow-[0_0_20px_rgba(0,223,184,0.2)]' : ''}
-                  ${status === 'completed' ? 'border-[#00DFB8]/30 bg-[#00DFB8]/10 text-white' : ''}
+                  ${status === 'running' ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5 shadow-[0_0_20px_rgba(83,74,183,0.2)]' : ''}
+                  ${status === 'completed' ? 'border-[var(--color-accent)]/30 bg-[var(--color-success)]/10 text-white' : ''}
                   ${status === 'failed' ? 'border-red-500/50 bg-red-500/5' : ''}
                   ${status === 'idle' ? 'border-white/10 bg-white/5' : ''}
                 `}
               >
                 {status === 'running' ? (
-                  <Loader2 className="w-6 h-6 animate-spin text-[#00DFB8]" />
+                  <Loader2 className="w-6 h-6 animate-spin text-[var(--color-accent)]" />
                 ) : status === 'completed' ? (
-                  <Check className="w-6 h-6 text-[#00DFB8]" />
+                  <Check className="w-6 h-6 text-[var(--color-accent)]" />
                 ) : status === 'failed' ? (
                   <AlertCircle className="w-6 h-6 text-red-500" />
                 ) : (
@@ -59,15 +59,15 @@ export function PipelineVisualizer({ agents, steps, currentRunId }: PipelineVisu
                   </div>
                 )}
                 
-                <span className={`text-[9px] font-black uppercase tracking-widest mt-2 px-1 text-center truncate w-full ${status === 'completed' ? 'text-[#00DFB8]' : 'text-gray-400'}`}>
+                <span className={`text-[9px] font-black uppercase tracking-widest mt-2 px-1 text-center truncate w-full ${status === 'completed' ? 'text-[var(--color-accent)]' : 'text-gray-400'}`}>
                   {agent.role}
                 </span>
 
                 {status === 'running' && (
                   <div className="absolute -top-1 -right-1">
                     <span className="relative flex h-3 w-3">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00DFB8] opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-[#00DFB8]"></span>
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--color-accent)] opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-[var(--color-accent)]"></span>
                     </span>
                   </div>
                 )}
@@ -88,7 +88,7 @@ export function PipelineVisualizer({ agents, steps, currentRunId }: PipelineVisu
             {!isLast && (
               <div className="w-12 h-px bg-white/10 relative -mt-10">
                 <div 
-                  className={`absolute top-0 left-0 h-full bg-[#00DFB8] transition-all duration-1000 ease-in-out`}
+                  className={`absolute top-0 left-0 h-full bg-[var(--color-accent)] transition-all duration-1000 ease-in-out`}
                   style={{ width: status === 'completed' ? '100%' : '0%' }}
                 />
               </div>
