@@ -4,13 +4,13 @@ This report documents the verification status, security audit alignment, design 
 
 ---
 
-## 1. Verified Pipeline Audit Statuses
+## 1. Verified Pipeline Audit Statuses 
 
 All 5 core workflow pipelines have been fully audited and verified under simulated sandbox runs.
 
 | Pipeline | Status | Notes |
 | :--- | :--- | :--- |
-| **Email triage** | **PASS** | Successfully connects Gmail, sorts emails into URGENT / NEEDS REPLY / FYI, supports draft previews, triggers PermissionCard, sends emails, and supports 120s reversals (moving to Trash) with "Undone" confirmations. |
+| **Email triage** | **PASS** | Successfully connects Gmail(anytype of mail), sorts emails into URGENT / NEEDS REPLY / FYI, supports draft previews, triggers PermissionCard, sends emails, and supports 120s reversals (moving to Trash) with "Undone" confirmations. |
 | **Research + spreadsheet** | **PASS** | Correctly triggers web search, builds xlsx spreadsheet with bold headers/alternating row colors/frozen rows, loads in ArtifactPanel, and shows post-task suggestion chips. |
 | **Browser automation** | **PASS** | Orchestrates Playwright Chromium to navigate, takes live screenshots (rendered in ArtifactPanel every 2 seconds), reads headings, and completes tasks in under 20 seconds. |
 | **Calendar scheduling** | **PASS** | Queries calendar free slots, renders inline time-slot chips, triggers PermissionCard on selection, and creates calendar events on approval. |
