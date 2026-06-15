@@ -94,7 +94,7 @@ export async function runAPIAgent(
         retries: 0
       }
     }
-    runEmitter.emitEvent(runId, 'agent_error', { agentId: agent.id, error: err.message })
+   runEmitter.emitEvent(runId, 'agent_error', { agentId: agent.id, error: err.message }) 
     return errorOutput
   }
 }

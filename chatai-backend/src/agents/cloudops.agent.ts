@@ -10,10 +10,10 @@ export async function runCloudOpsAgent(
   runId: string
 ): Promise<AgentOutput> {
   const startTime = Date.now()
-  const toolsUsed: string[] = []
+  const toolsUsed: string[] = []            // async function for cloudops agent callback properties added for mainly promises
   
   logger.info(`[Agent: ${agent.name}] Starting CloudOps Cost Optimization...`)
-  runEmitter.emitEvent(runId, 'agent_start', { agentId: agent.id, name: agent.name })
+  runEmitter.emitEvent(runId, 'agent_start', { agentId: agent.id, name: agent.name })          // we will use the agent name here 
 
   try {
     const usageData = input.user_inputs?.usage_data || input.previous_outputs || agent.description
