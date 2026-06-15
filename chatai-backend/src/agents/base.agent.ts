@@ -29,9 +29,9 @@ function getHFClient(): OpenAI {
       baseURL: 'https://router.huggingface.co/v1',
       timeout: 15000
     })
-  }
+  }            
   return _hfClient
-}
+}                                                              // its basically not usable as its for open-models and very much paid
 
 // 1.5 Mistral AI (High-performance Alternative)
 let _mistralClient: OpenAI | null = null
@@ -45,7 +45,7 @@ function getMistralClient(): OpenAI {
     })
   }
   return _mistralClient
-}
+}   // its proper alternative 
 
 // 2. OpenAI (Paid Models & Embeddings)
 let _openaiClient: OpenAI | null = null
@@ -58,8 +58,8 @@ function getOpenAIClient(): OpenAI {
     })
   }
   return _openaiClient
-}
-
+} // after paid users it will be an used for the paid users only
+ 
 // 3. NVIDIA Moonshot AI Kimi Client (Reasoning & Large Context)
 let _kimiClient: OpenAI | null = null
 function getKimiClient(): OpenAI {
@@ -72,7 +72,7 @@ function getKimiClient(): OpenAI {
     })
   }
   return _kimiClient
-}
+} // a proper aI-model for the working tasks 
 
 // ── Model selection logic (Block 1.1) ──────────────────────────────────────
 const DEFAULT_FREE_MODEL = 'Qwen/WebWorld-8B:featherless-ai'
