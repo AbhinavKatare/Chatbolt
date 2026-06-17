@@ -3,7 +3,7 @@ import cron from 'node-cron'
 
 export function startKeepAlive() {
   if (process.env.NODE_ENV !== 'production') {
-    logger.info('Keep-alive: Not in production, skipping.')
+    logger.info('Keep-alive: Not in production, skipping.')      // its for make the Chatbolt Alive and make it work always with this export function.
     return
   }
   
