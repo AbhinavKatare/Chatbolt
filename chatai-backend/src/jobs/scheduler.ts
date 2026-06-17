@@ -15,7 +15,7 @@ export async function initScheduler() {
        FROM workflow_schedules s
        JOIN workflows w ON s.workflow_id = w.id
        WHERE s.is_active = true AND w.status = 'active'`
-    )
+    )                                                                             // most useable but mostly forgetable as its schedules will do jobs for cron and keep-alive as there part of system to make them run the cron jobs 
     const schedules = schedulesRes || []
     for (const schedule of schedules) {
       scheduleWorkflow(schedule.workflow_id, schedule.tenant_id, schedule.cron_expression, schedule.timezone)
