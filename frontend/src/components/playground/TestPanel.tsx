@@ -11,7 +11,7 @@ interface TestPanelProps {
 }
 
 export function TestPanel({ agent, workflowId, userInputs, onClose }: TestPanelProps) {
-  const [task, setTask] = useState(agent.description || '')
+  const [task, setTask] = useState(agent.description || '')            // task related use state
   const [simPrevOutput, setSimPrevOutput] = useState('')
   const [simEnabled, setSimEnabled] = useState(false)
   const [running, setRunning] = useState(false)
