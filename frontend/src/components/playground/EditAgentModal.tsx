@@ -7,8 +7,8 @@ const ROLES = ['researcher','writer','email_sender','scraper','data_processor','
 const MODELS = [
   { id: 'qwen/qwen3-235b-a22b:free', label: '⚡ Qwen3 235B', sub: 'Free' },
   { id: 'gpt-4o', label: '🧠 GPT-4o', sub: 'Paid' },
-  { id: 'claude-3-5-sonnet-20241022', label: '💎 Claude Sonnet', sub: 'Paid' },
-  { id: 'mistralai/mistral-large-latest', label: '🔥 Mistral Large', sub: 'Paid' },
+  { id: 'claude-3-5-sonnet-20241022', label: '💎 Claude Sonnet', sub: 'Paid' },    // its primary paid for the users
+  { id: 'mistralai/mistral-large-latest', label: '🔥 Mistral Large', sub: 'Paid' }, // they are paid for our category and paid users 
 ]
 
 interface EditAgentModalProps {
