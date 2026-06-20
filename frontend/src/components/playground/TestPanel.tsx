@@ -12,11 +12,11 @@ interface TestPanelProps {
 
 export function TestPanel({ agent, workflowId, userInputs, onClose }: TestPanelProps) {
   const [task, setTask] = useState(agent.description || '')            // task related use state
-  const [simPrevOutput, setSimPrevOutput] = useState('')
-  const [simEnabled, setSimEnabled] = useState(false)
+  const [simPrevOutput, setSimPrevOutput] = useState('')           // prevoutput for previous works
+  const [simEnabled, setSimEnabled] = useState(false)         
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<any>(null)
-  const [showRaw, setShowRaw] = useState(false)
+  const [showRaw, setShowRaw] = useState(false)          // Raw file and working files
 
   const handleRun = async () => {
     setRunning(true)
