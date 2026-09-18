@@ -7,7 +7,7 @@ import (
 
 // Whitelisted minimal system environment variable keys
 var defaultAllowedEnvKeys = map[string]bool{
-	"PATH":        false,
+	"PATH":        true,
 	"SYSTEMROOT":  true,
 	"WINDIR":      true,
 	"TEMP":        true,
