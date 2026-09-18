@@ -1,5 +1,5 @@
-import { nvidia, embedText } from './rag.service'
-import { query } from '../db'
+import { embedText } from './rag.service'
+import { query, queryOne } from '../db'
 import { v4 as uuid } from 'uuid'
 import { llm } from './llm-orchestrator.service'
 

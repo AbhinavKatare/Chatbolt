@@ -5,44 +5,39 @@ import { Agent, ChunkSource, Tenant } from '../types'
 import { Response } from 'express'
 import { syncLeadToSheet } from './sheets.service'
 
-// specialized NVIDIA Clients
-const getFallbackNvidiaKey = () => {
-  return process.env.NVIDIA_API_KEY_MISTRAL || process.env.NVIDIA_API_KEY_LLAMA || process.env.NVIDIA_API_KEY || process.env.KIMI_API_KEY || process.env.KIMI_K2_API_KEY || '';
-}
-
-export const nvidiaMistral = new OpenAI({
-  apiKey: process.env.NVIDIA_API_KEY_MISTRAL || getFallbackNvidiaKey(),
-  baseURL: 'https://integrate.api.nvidia.com/v1',
-})
-
-export const nvidiaLlama = new OpenAI({
-  apiKey: process.env.NVIDIA_API_KEY_LLAMA || getFallbackNvidiaKey(),
-  baseURL: 'https://integrate.api.nvidia.com/v1',
-})
-
-export const nvidia = nvidiaLlama
-
-export const nvidiaNemotron = new OpenAI({
-  apiKey: process.env.NVIDIA_API_KEY_NEMOTRON || getFallbackNvidiaKey(),
-  baseURL: 'https://integrate.api.nvidia.com/v1',
-})
-
-// BoltAI Gateway Client
-export const boltAIGateway = new OpenAI({
-  apiKey: process.env.BOLTAI_API_KEY || '',
+// Primary Multi-Provider LLM Clients
+export const openRouterClient = new OpenAI({
+  apiKey: process.env.OPENROUTER_API_KEY || process.env.BOLTAI_API_KEY || 'mock_key',
   baseURL: 'https://openrouter.ai/api/v1',
+  defaultHeaders: {
+    'HTTP-Referer': 'https://chatbolt.ai',
+    'X-Title': 'Chatbolt AI Agent Workforce'
+  }
 })
-// Business-grade models via NVIDIA NIM
+
+export const openAIClient = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || 'mock_key',
+  baseURL: 'https://api.openai.com/v1',
+})
+
+export const huggingFaceClient = new OpenAI({
+  apiKey: process.env.HUGGINGFACE_API_KEY || process.env.HF_API_KEY || 'mock_key',
+  baseURL: 'https://router.huggingface.co/v1',
+})
+
+export const boltAIGateway = openRouterClient
+
 export const FREE_MODELS = [
-  'meta/llama-3.1-8b-instruct',
-  'meta/llama-3.1-8b-instruct',
-  'mistralai/mixtral-8x22b-instruct-v0.1'
+  'openai/gpt-4o-mini',
+  'meta-llama/llama-3.3-70b-instruct',
+  'mistralai/mistral-large-2411'
 ]
 
 function getClient(model: string): OpenAI {
-  if (model.includes('mistral')) return nvidiaMistral
-  if (model.includes('nemotron')) return nvidiaNemotron
-  return nvidiaLlama
+  if (process.env.OPENROUTER_API_KEY) return openRouterClient
+  if (model.startsWith('openai/') || model.startsWith('gpt-')) return openAIClient
+  if (model.includes('/') && process.env.HUGGINGFACE_API_KEY) return huggingFaceClient
+  return openAIClient
 }
 
 import { embedText as baseEmbedText } from '../agents/base.agent'

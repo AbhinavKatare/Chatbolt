@@ -29,17 +29,24 @@ export interface OAuthTokens {
   scopes?: string
 }
 
-const ENCRYPTION_KEY = process.env.INTEGRATION_ENCRYPTION_KEY || process.env.VAULT_ENCRYPTION_KEY || 'chatbolt_integration_encryption_key_2026_super_secret!'
+export const LEGACY_INTEGRATION_KEY = 'chatbolt_integration_encryption_key_2026_super_secret!'
 const ALGORITHM = 'aes-256-gcm'
 const IV_LENGTH = 12
 
-function getSecretKey() {
-  return crypto.createHash('sha256').update(ENCRYPTION_KEY).digest()
+function getSecretKey(customKey?: string): Buffer {
+  const key = customKey || process.env.INTEGRATION_ENCRYPTION_KEY || process.env.VAULT_ENCRYPTION_KEY
+  if (!key || key.trim() === '') {
+    throw new Error(
+      'FATAL CONFIGURATION ERROR: VAULT_ENCRYPTION_KEY or INTEGRATION_ENCRYPTION_KEY environment variable is not set. ' +
+      'Refusing to process integration tokens without an explicit encryption key.'
+    )
+  }
+  return crypto.createHash('sha256').update(key.trim()).digest()
 }
 
-export function encryptGCM(text: string): string {
+export function encryptGCM(text: string, customKey?: string): string {
   const iv = crypto.randomBytes(IV_LENGTH)
-  const key = getSecretKey()
+  const key = getSecretKey(customKey)
   const cipher = crypto.createCipheriv(ALGORITHM, key, iv)
   let encrypted = cipher.update(text, 'utf8', 'hex')
   encrypted += cipher.final('hex')
@@ -47,14 +54,14 @@ export function encryptGCM(text: string): string {
   return iv.toString('hex') + ':' + authTag + ':' + encrypted
 }
 
-export function decryptGCM(ciphertext: string): string {
+export function decryptGCM(ciphertext: string, customKey?: string): string {
   const parts = ciphertext.split(':')
   if (parts.length !== 3) throw new Error('Invalid GCM ciphertext format')
   
   const iv = Buffer.from(parts[0], 'hex')
   const authTag = Buffer.from(parts[1], 'hex')
   const encryptedText = Buffer.from(parts[2], 'hex')
-  const key = getSecretKey()
+  const key = getSecretKey(customKey)
   
   const decipher = crypto.createDecipheriv(ALGORITHM, key, iv)
   decipher.setAuthTag(authTag)
@@ -62,6 +69,7 @@ export function decryptGCM(ciphertext: string): string {
   decrypted = Buffer.concat([decrypted, decipher.final()])
   return decrypted.toString('utf8')
 }
+
 
 function normalizeService(service: string): string {
   if (service === 'google_calendar') return 'google-calendar'

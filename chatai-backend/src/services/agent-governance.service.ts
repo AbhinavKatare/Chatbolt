@@ -43,6 +43,86 @@ class AgentGovernanceService {
   }
 
   /**
+   * Pre-execution interception gate for destructive and irreversible actions
+   * (e.g. file deletion, arbitrary shell/code execution, database mutations).
+   * If autonomy level is below 'fully_autonomous', explicit user approval is required BEFORE execution.
+   */
+  async checkPreExecutionApproval(params: {
+    tenantId: string
+    runId?: string
+    actionType: string
+    payload: any
+    autonomyLevel?: 'supervised' | 'semi_autonomous' | 'fully_autonomous' | string
+  }): Promise<{ allowed: boolean; reason?: string; requiresApproval?: boolean }> {
+    const { tenantId, runId, actionType, payload, autonomyLevel = 'supervised' } = params
+
+    const DESTRUCTIVE_ACTIONS = [
+      'file_delete',
+      'delete_file',
+      'shell_exec',
+      'code_executor',
+      'execute_python',
+      'rm_rf',
+      'delete_database',
+      'drop_table',
+      'truncate_table'
+    ]
+
+    const isDestructive = DESTRUCTIVE_ACTIONS.some(act => 
+      actionType.toLowerCase().includes(act) || 
+      (payload?.command && (payload.command.includes('rm ') || payload.command.includes('del ') || payload.command.includes('drop '))) ||
+      (payload?.operation && payload.operation.toLowerCase().includes('delete'))
+    )
+
+    if (!isDestructive) {
+      return { allowed: true }
+    }
+
+    // If fully autonomous, allow execution but log cryptographic audit event
+    if (autonomyLevel === 'fully_autonomous') {
+      if (runId) {
+        await this.logCryptographicEvent(tenantId, runId, 'DESTRUCTIVE_ACTION_AUTONOMOUS_EXECUTION', {
+          actionType,
+          payloadSummary: typeof payload === 'object' ? Object.keys(payload) : 'raw'
+        })
+      }
+      return { allowed: true }
+    }
+
+    // Check if explicit approval is present in payload / execution context
+    const isExplicitlyApproved = payload?.approved === true || payload?.preApproved === true
+
+    if (isExplicitlyApproved) {
+      if (runId) {
+        await this.logCryptographicEvent(tenantId, runId, 'DESTRUCTIVE_ACTION_APPROVED_BY_USER', {
+          actionType,
+          approvedAt: new Date().toISOString()
+        })
+      }
+      return { allowed: true }
+    }
+
+    // Block execution and emit approval requirement event
+    if (runId) {
+      try {
+        const { runEmitter } = require('./sse.service')
+        runEmitter.emitEvent(runId, 'action:approval_required', {
+          actionType,
+          payload,
+          message: `Approval Gate: Action "${actionType}" requires explicit confirmation before running.`
+        })
+      } catch {}
+    }
+
+    return {
+      allowed: false,
+      requiresApproval: true,
+      reason: `Pre-execution gate blocked action "${actionType}": requires explicit user confirmation under ${autonomyLevel} autonomy mode.`
+    }
+  }
+
+
+  /**
    * Evaluates the safety risk score of an agent action (0.0 to 1.0)
    */
   async assessWorkflowRisk(runId: string, agentName: string, toolsNeeded: string[]): Promise<number> {

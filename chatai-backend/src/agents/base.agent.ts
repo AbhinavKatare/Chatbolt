@@ -60,19 +60,26 @@ function getOpenAIClient(): OpenAI {
   return _openaiClient
 }
 
-// 3. NVIDIA Moonshot AI Kimi Client (Reasoning & Large Context)
-let _kimiClient: OpenAI | null = null
-function getKimiClient(): OpenAI {
-  if (!_kimiClient) {
-    const key = cleanEnvVar('KIMI_K2_API_KEY') || cleanEnvVar('KIMI_API_KEY')
-    _kimiClient = new OpenAI({
-      apiKey: key || 'dummy-nvapi-key-prevent-kimi-crash',
-      baseURL: 'https://integrate.api.nvidia.com/v1',
-      timeout: 15000
+// 3. OpenRouter Client (Universal Multi-Model Gateway)
+let _openRouterClient: OpenAI | null = null
+function getOpenRouterClient(): OpenAI {
+  if (!_openRouterClient) {
+    const key = cleanEnvVar('OPENROUTER_API_KEY') || cleanEnvVar('openrouter_api_key')
+    _openRouterClient = new OpenAI({
+      apiKey: key || 'dummy-openrouter-key',
+      baseURL: 'https://openrouter.ai/api/v1',
+      timeout: 20000,
+      defaultHeaders: {
+        'HTTP-Referer': 'https://chatbolt.ai',
+        'X-Title': 'Chatbolt AI Agent Workforce'
+      }
     })
   }
-  return _kimiClient
+  return _openRouterClient
 }
+
+// Alias for backwards compatibility
+const getKimiClient = getOpenRouterClient
 
 // ── Model selection logic (Block 1.1) ──────────────────────────────────────
 const DEFAULT_FREE_MODEL = 'Qwen/WebWorld-8B:featherless-ai'

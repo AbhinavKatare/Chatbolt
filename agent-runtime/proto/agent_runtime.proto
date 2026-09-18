@@ -1,0 +1,142 @@
+syntax = "proto3";
+
+package agentruntime;
+
+option go_package = "agent-runtime/proto;agentruntime";
+
+// AgentRuntime service provides process supervision, sandboxed code execution,
+// agent pub/sub bus coordination, and circuit breaking status.
+service AgentRuntimeService {
+  // Executes an agent step and streams real-time status updates back to the caller
+  rpc ExecuteAgentStep(ExecuteStepRequest) returns (stream StepStatusUpdate);
+
+  // Executes code in an isolated, resource-constrained sandbox
+  rpc ExecuteSandboxCode(SandboxExecRequest) returns (SandboxExecResponse);
+
+  // Publishes a message to the internal AgentBus
+  rpc PublishBusMessage(BusMessage) returns (BusAck);
+
+  // Subscribes to AgentBus topics with a real-time message stream
+  rpc SubscribeBus(SubscribeRequest) returns (stream BusMessage);
+
+  // Queries runtime system resource metrics (CPU, RAM, active workers, queue depth)
+  rpc GetSystemMetrics(MetricsRequest) returns (SystemMetricsResponse);
+
+  // Queries the circuit breaker status for roles and the sandbox executor
+  rpc GetCircuitBreakerStatus(CircuitBreakerRequest) returns (CircuitBreakerResponse);
+}
+
+// Request to execute an agent workflow step
+message ExecuteStepRequest {
+  string run_id = 1;
+  string step_id = 2;
+  string tenant_id = 3;
+  string agent_id = 4;
+  string agent_role = 5;
+  string action_type = 6;
+  string payload_json = 7;
+  int32 timeout_seconds = 8;
+  string autonomy_level = 9;
+}
+
+// Streaming update emitted during agent step execution
+message StepStatusUpdate {
+  string run_id = 1;
+  string step_id = 2;
+  string status = 3; // "QUEUED", "RUNNING", "STREAMING", "COMPLETED", "FAILED", "CIRCUIT_BROKEN"
+  string output_chunk = 4;
+  string result_json = 5;
+  string error_message = 6;
+  int64 timestamp_ms = 7;
+  int64 memory_bytes_used = 8;
+  double cpu_percent_used = 9;
+}
+
+// Request to execute arbitrary code in a sandboxed environment
+message SandboxExecRequest {
+  string execution_id = 1;
+  string language = 2; // "javascript", "node", "python", "sh", "bash"
+  string code = 3;
+  int32 timeout_seconds = 4; // default 30
+  int64 max_memory_mb = 5;  // default 256
+  bool allow_network = 6;   // default false
+  map<string, string> custom_env = 7; // strictly sanitized whitelist only
+}
+
+// Response from sandboxed execution
+message SandboxExecResponse {
+  string execution_id = 1;
+  bool success = 2;
+  int32 exit_code = 3;
+  string stdout = 4;
+  string stderr = 5;
+  int64 duration_ms = 6;
+  int64 peak_memory_bytes = 7;
+  bool timed_out = 8;
+  string isolation_mode = 9; // "process_isolated", "docker_container", "unshare_jail"
+}
+
+// Message published or delivered across the AgentBus
+message BusMessage {
+  string message_id = 1;
+  string run_id = 2;
+  string sender_agent_id = 3;
+  string sender_role = 4;
+  string target_topic = 5; // e.g., "workflow.run-123.lead", "agent.writer", "broadcast.all"
+  string event_type = 6;
+  string payload_json = 7;
+  int64 timestamp_ms = 8;
+}
+
+// Acknowledgement of a published message
+message BusAck {
+  string message_id = 1;
+  bool delivered = 2;
+  int32 subscriber_count = 3;
+}
+
+// Request to subscribe to AgentBus topic patterns
+message SubscribeRequest {
+  string subscriber_id = 1;
+  string run_id = 2;
+  repeated string topics = 3; // Supports prefix/wildcard match, e.g. "workflow.123.*"
+}
+
+// Request for system metrics
+message MetricsRequest {
+  bool detailed = 1;
+}
+
+// Real-time system and worker pool metrics
+message SystemMetricsResponse {
+  double cpu_percent = 1;
+  int64 memory_used_bytes = 2;
+  int64 memory_total_bytes = 3;
+  double memory_percent = 4;
+  int32 active_workers = 5;
+  int32 max_workers = 6;
+  int32 queued_tasks = 7;
+  int32 active_goroutines = 8;
+  int64 total_tasks_executed = 9;
+  int64 total_tasks_failed = 10;
+  int64 uptime_seconds = 11;
+}
+
+// Request for circuit breaker status
+message CircuitBreakerRequest {
+  string role_or_target = 1; // Optional filter; empty means all
+}
+
+// Circuit breaker state summary
+message CircuitBreakerResponse {
+  map<string, CircuitBreakerState> states = 1;
+}
+
+message CircuitBreakerState {
+  string target = 1; // agent role or "sandbox"
+  string state = 2;  // "CLOSED", "OPEN", "HALF_OPEN"
+  int32 failure_count = 3;
+  int32 success_count = 4;
+  int64 last_failure_timestamp_ms = 5;
+  int64 cooldown_remaining_ms = 6;
+}

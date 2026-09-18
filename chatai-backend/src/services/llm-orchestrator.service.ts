@@ -2,27 +2,47 @@ import { logger } from './logger.service';
 import { OpenAI } from 'openai';
 
 /**
- * NVIDIA NIM Models mapped to their specific roles in Chatbolt
+ * Universal Multi-Provider Models (OpenRouter, OpenAI, Hugging Face)
  */
-export const NIM_MODELS = {
-  AUTOGEN: process.env.AUTOGEN_MODEL || 'nvidia/autogen-23-llama3-70b', // Provided by user or fallback
-  REASONER: 'qwen/qwen2.5-72b-instruct', // Best for planning and logic
-  WRITER: 'meta/llama-3.1-8b-instruct',  // Best for prose and creative output
-  EXTRACTOR: 'mistralai/mixtral-8x7b-instruct-v0.1', // Best for data extraction
-  FAST: 'microsoft/phi-3-mini-128k-instruct', // Best for simple/cheap tasks
-  HEAVY_AGENT: 'meta/llama-3.1-8b-instruct',
+export const CHATBOLT_MODELS = {
+  AUTOGEN: process.env.AUTOGEN_MODEL || 'openai/gpt-4o',
+  REASONER: 'anthropic/claude-3.5-sonnet', // Top tier reasoning & planning via OpenRouter
+  WRITER: 'openai/gpt-4o-mini',            // Fast, high-quality prose
+  EXTRACTOR: 'meta-llama/llama-3.3-70b-instruct', // Fast structured data extraction
+  FAST: 'openai/gpt-4o-mini',             // Budget/fast tasks
+  HEAVY_AGENT: 'openai/gpt-4o',
+  CODE: 'qwen/qwen-2.5-coder-32b-instruct', // Premier coding model
+  NEMOTRON: 'nvidia/llama-3.1-nemotron-70b-instruct', // Legacy alias
+  DEFAULT: 'openai/gpt-4o',
 };
+
+// Aliased for seamless backward compatibility across agent references
+export const NIM_MODELS = CHATBOLT_MODELS;
 
 export class LLMOrchestrator {
   private client: OpenAI;
 
   constructor() {
-    const nvidiaApiKey = process.env.NVIDIA_API_KEY_2 || process.env.NVIDIA_API_KEY || process.env.KIMI_API_KEY || process.env.KIMI_K2_API_KEY || 'mock_key';
+    const apiKey = process.env.OPENROUTER_API_KEY || 
+                   process.env.OPENAI_API_KEY || 
+                   process.env.HUGGINGFACE_API_KEY || 
+                   process.env.HF_API_KEY || 
+                   'mock_key';
+
+    const baseURL = process.env.OPENROUTER_API_KEY 
+      ? 'https://openrouter.ai/api/v1'
+      : process.env.HUGGINGFACE_API_KEY 
+        ? 'https://router.huggingface.co/v1' 
+        : 'https://api.openai.com/v1';
 
     this.client = new OpenAI({
-      apiKey: nvidiaApiKey,
-      baseURL: 'https://integrate.api.nvidia.com/v1',
-      timeout: 15000
+      apiKey,
+      baseURL,
+      timeout: 20000,
+      defaultHeaders: process.env.OPENROUTER_API_KEY ? {
+        'HTTP-Referer': 'https://chatbolt.ai',
+        'X-Title': 'Chatbolt AI Agent Workforce'
+      } : undefined
     });
   }
 

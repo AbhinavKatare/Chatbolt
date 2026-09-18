@@ -4,6 +4,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { randomUUID } from 'crypto'
 import axios from 'axios'
+import { agentRuntimeClient } from './agent-runtime-client.service'
 
 export interface SandboxResult {
   stdout: string
@@ -22,10 +23,153 @@ class SandboxService {
   }
 
   /**
-   * Run Python code in an isolated container/sandbox
+   * Generates a sanitized, stripped environment for subprocess execution.
+   * Strips all application secrets, API keys, database URLs, and master keys.
+   */
+  private getSanitizedEnv(customDir: string): NodeJS.ProcessEnv {
+    const isWindows = process.platform === 'win32'
+    const minimalEnv: NodeJS.ProcessEnv = {
+      NODE_ENV: 'production',
+      PATH: process.env.PATH || (isWindows ? 'C:\\Windows\\System32;C:\\Windows' : '/usr/local/bin:/usr/bin:/bin'),
+      TMP: customDir,
+      TEMP: customDir,
+      TMPDIR: customDir,
+      HOME: customDir,
+      USERPROFILE: customDir,
+      PYTHONDONTWRITEBYTECODE: '1',
+      PYTHONUNBUFFERED: '1',
+      NODE_NO_WARNINGS: '1',
+    }
+
+    if (isWindows) {
+      if (process.env.SYSTEMROOT) minimalEnv.SYSTEMROOT = process.env.SYSTEMROOT
+      if (process.env.COMSPEC) minimalEnv.COMSPEC = process.env.COMSPEC
+      if (process.env.PATHEXT) minimalEnv.PATHEXT = process.env.PATHEXT
+    }
+
+    return minimalEnv
+  }
+
+  /**
+   * Executes a command within an isolated directory with a strict timeout,
+   * stripped environment variables, and process tree termination on timeout.
+   */
+  private async executeSafely(
+    command: string,
+    taskDir: string,
+    timeoutMs = 30000
+  ): Promise<SandboxResult> {
+    return new Promise((resolve) => {
+      const sanitizedEnv = this.getSanitizedEnv(taskDir)
+      
+      // On Unix/Linux, apply ulimit to restrict memory (512MB), CPU time (30s), and max file output size
+      const isUnix = process.platform !== 'win32'
+      const finalCommand = isUnix 
+        ? `ulimit -v 524288 -t 30 -f 50000 2>/dev/null || true; ${command}`
+        : command
+
+      let child: any = null
+      let isTimedOut = false
+
+      const timer = setTimeout(() => {
+        isTimedOut = true
+        if (child) {
+          try {
+            if (process.platform === 'win32') {
+              exec(`taskkill /pid ${child.pid} /T /F`, { windowsHide: true }, () => {})
+            } else {
+              child.kill('SIGKILL')
+            }
+          } catch (kErr) {
+            // Process might have already exited
+          }
+        }
+      }, timeoutMs)
+
+      try {
+        child = exec(
+          finalCommand,
+          {
+            timeout: timeoutMs + 1000,
+            cwd: taskDir,
+            env: sanitizedEnv,
+            maxBuffer: 1024 * 512, // 512KB max output buffer
+            windowsHide: true
+          },
+          (error, stdout, stderr) => {
+            clearTimeout(timer)
+
+            // Force cleanup of temporary directory
+            try {
+              fs.rmSync(taskDir, { recursive: true, force: true })
+            } catch (e) {
+              console.error('[Sandbox] Failed to clean up task sandbox folder:', e)
+            }
+
+            if (isTimedOut) {
+              return resolve({
+                stdout: (stdout || '').trim(),
+                stderr: `Execution timed out after ${timeoutMs / 1000}s (Subprocess terminated).`,
+                success: false
+              })
+            }
+
+            if (error) {
+              return resolve({
+                stdout: (stdout || '').trim(),
+                stderr: (stderr || error.message || 'Execution error').trim(),
+                success: false
+              })
+            }
+
+            return resolve({
+              stdout: (stdout || '').trim(),
+              stderr: (stderr || '').trim(),
+              success: true
+            })
+          }
+        )
+      } catch (spawnErr: any) {
+        clearTimeout(timer)
+        try {
+          fs.rmSync(taskDir, { recursive: true, force: true })
+        } catch {}
+
+        return resolve({
+          stdout: '',
+          stderr: `Subprocess spawn error: ${spawnErr.message}`,
+          success: false
+        })
+      }
+    })
+  }
+
+  /**
+   * Run Python code in an isolated, sanitized container/sandbox
    */
   async runPython(code: string, runId?: string): Promise<SandboxResult> {
     const id = runId || randomUUID()
+
+    // 1. Check if Go agent-runtime service is available
+    if (await agentRuntimeClient.isAvailable()) {
+      try {
+        const goRes = await agentRuntimeClient.executeSandboxCode({
+          execution_id: id,
+          language: 'python',
+          code,
+          timeout_seconds: 30,
+        })
+        return {
+          stdout: goRes.stdout,
+          stderr: goRes.stderr,
+          success: goRes.success,
+        }
+      } catch (err: any) {
+        logger.warn(`[Sandbox] Go runtime execution failed, falling back to local: ${err.message}`)
+      }
+    }
+
+    // 2. Local fallback runner
     const taskDir = path.join(this.sandboxRoot, id)
     if (!fs.existsSync(taskDir)) {
       fs.mkdirSync(taskDir, { recursive: true })
@@ -34,40 +178,35 @@ class SandboxService {
     const scriptPath = path.join(taskDir, 'script.py')
     fs.writeFileSync(scriptPath, code, 'utf8')
 
-    return new Promise((resolve) => {
-      // Execute local python inside sandboxed directory structure with a 30s timeout
-      const command = `python "${scriptPath}"`
-      
-      exec(command, { timeout: 30000, cwd: taskDir }, (error, stdout, stderr) => {
-        // Cleanup temp folder
-        try {
-          fs.rmSync(taskDir, { recursive: true, force: true })
-        } catch (e) {
-          console.error('[Sandbox] Failed to clean up task sandbox folder:', e)
-        }
-
-        if (error) {
-          resolve({
-            stdout: stdout.trim(),
-            stderr: (stderr || error.message).trim(),
-            success: false
-          })
-        } else {
-          resolve({
-            stdout: stdout.trim(),
-            stderr: stderr.trim(),
-            success: true
-          })
-        }
-      })
-    })
+    return this.executeSafely(`python "${scriptPath}"`, taskDir, 30000)
   }
 
   /**
-   * Run JavaScript/TypeScript code in an isolated container/sandbox
+   * Run JavaScript/TypeScript code in an isolated, sanitized container/sandbox
    */
   async runNode(code: string, runId?: string): Promise<SandboxResult> {
     const id = runId || randomUUID()
+
+    // 1. Check if Go agent-runtime service is available
+    if (await agentRuntimeClient.isAvailable()) {
+      try {
+        const goRes = await agentRuntimeClient.executeSandboxCode({
+          execution_id: id,
+          language: 'node',
+          code,
+          timeout_seconds: 30,
+        })
+        return {
+          stdout: goRes.stdout,
+          stderr: goRes.stderr,
+          success: goRes.success,
+        }
+      } catch (err: any) {
+        logger.warn(`[Sandbox] Go runtime execution failed, falling back to local: ${err.message}`)
+      }
+    }
+
+    // 2. Local fallback runner
     const taskDir = path.join(this.sandboxRoot, id)
     if (!fs.existsSync(taskDir)) {
       fs.mkdirSync(taskDir, { recursive: true })
@@ -76,34 +215,9 @@ class SandboxService {
     const scriptPath = path.join(taskDir, 'script.js')
     fs.writeFileSync(scriptPath, code, 'utf8')
 
-    return new Promise((resolve) => {
-      // Execute local node inside sandboxed directory structure with a 30s timeout
-      const command = `node "${scriptPath}"`
-      
-      exec(command, { timeout: 30000, cwd: taskDir }, (error, stdout, stderr) => {
-        // Cleanup temp folder
-        try {
-          fs.rmSync(taskDir, { recursive: true, force: true })
-        } catch (e) {
-          console.error('[Sandbox] Failed to clean up task sandbox folder:', e)
-        }
-
-        if (error) {
-          resolve({
-            stdout: stdout.trim(),
-            stderr: (stderr || error.message).trim(),
-            success: false
-          })
-        } else {
-          resolve({
-            stdout: stdout.trim(),
-            stderr: stderr.trim(),
-            success: true
-          })
-        }
-      })
-    })
+    return this.executeSafely(`node "${scriptPath}"`, taskDir, 30000)
   }
+
 
   /**
    * Create an ephemeral micro-VM using the Fly.io Machines API

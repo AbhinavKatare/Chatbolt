@@ -114,9 +114,30 @@ export function listTools(): ToolDefinition[] {
   return Object.values(TOOLS)
 }
 
-export async function executeToolWithRetry(name: string, input: any, maxRetries = 3, runId?: string): Promise<any> {
+export async function executeToolWithRetry(name: string, input: any, maxRetries = 3, runId?: string, tenantId = '00000000-0000-0000-0000-000000000000'): Promise<any> {
   const tool = getTool(name)
   if (!tool) throw new Error(`Tool ${name} not found`)
+
+  // Pre-execution Approval Gate for destructive actions
+  try {
+    const { agentGovernanceService } = await import('../services/agent-governance.service')
+    const gateCheck = await agentGovernanceService.checkPreExecutionApproval({
+      tenantId,
+      runId,
+      actionType: name,
+      payload: input,
+      autonomyLevel: input?.autonomyLevel || 'supervised'
+    })
+
+    if (!gateCheck.allowed) {
+      logger.warn(`[Registry Approval Gate] Tool execution blocked: ${gateCheck.reason}`)
+      throw new Error(gateCheck.reason || `Tool ${name} execution blocked by pre-execution approval gate.`)
+    }
+  } catch (gateErr: any) {
+    if (gateErr.message && gateErr.message.includes('Pre-execution gate blocked')) {
+      throw gateErr
+    }
+  }
 
   const isDestructive = DESTRUCTIVE_TOOLS.includes(name)
   const isDryRun = process.env.DRY_RUN === 'true' || input?.dryRun === true
@@ -170,4 +191,5 @@ export async function executeToolWithRetry(name: string, input: any, maxRetries 
   }
   throw lastError
 }
+
 

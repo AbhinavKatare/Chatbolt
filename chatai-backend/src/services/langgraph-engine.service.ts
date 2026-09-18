@@ -17,18 +17,17 @@ import { supervisorService } from './supervisor.service';
 import { cleanEnvVar } from "../agents/base.agent";
 
 // Setup LLM using Mistral AI or Hugging Face Router
-// IMPORTANT: @langchain/openai reads OPENAI_API_KEY from process.env internally,
-// so we must inject the correct key before creating the ChatOpenAI instance.
+// Explicitly passes API keys to the ChatOpenAI client config per call without mutating global process.env.
 function getLLM(_modelName?: string) {
   const mistralKey = cleanEnvVar('MISTRAL_API_KEY') || cleanEnvVar('mistral_api_key');
   const hfKey = cleanEnvVar('HUGGINGFACE_API_KEY') || cleanEnvVar('HF_API_KEY');
 
   if (mistralKey) {
     logger.info("Using Mistral AI as primary LLM (Mistral-Large)...");
-    process.env.OPENAI_API_KEY = mistralKey;
     return new ChatOpenAI({
       modelName: 'mistral-large-latest',
       temperature: 0.7,
+      apiKey: mistralKey,
       openAIApiKey: mistralKey,
       configuration: {
         baseURL: 'https://api.mistral.ai/v1',
@@ -39,16 +38,17 @@ function getLLM(_modelName?: string) {
   if (!hfKey) throw new Error('No LLM API keys found (MISTRAL_API_KEY or HF_API_KEY)');
 
   logger.info("Using Hugging Face Router as primary LLM...");
-  process.env.OPENAI_API_KEY = hfKey;
   return new ChatOpenAI({
     modelName: 'Qwen/WebWorld-8B:featherless-ai',
     temperature: 0.7,
+    apiKey: hfKey,
     openAIApiKey: hfKey,
     configuration: {
       baseURL: 'https://router.huggingface.co/v1',
     },
   });
 }
+
 
 function pruneContext(previousOutputs: Record<string, AgentOutput>): string {
   const serialized = JSON.stringify(previousOutputs);
