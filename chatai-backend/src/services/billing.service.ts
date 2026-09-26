@@ -1,6 +1,7 @@
 import { query, queryOne } from '../db'
 import Stripe from 'stripe'
 import { logger } from './logger.service'
+import { entitlementService } from './entitlement.service'
 
 export interface PlanLimits {
   tasks_per_month: number | 'unlimited';
@@ -74,6 +75,10 @@ const PRICE_IDS: Record<string, Record<string, string>> = {
   team: {
     monthly: process.env.STRIPE_PRICE_TEAM_MONTHLY || 'price_mock_team_monthly',
     annual: process.env.STRIPE_PRICE_TEAM_ANNUAL || 'price_mock_team_annual',
+  },
+  enterprise: {
+    monthly: process.env.STRIPE_PRICE_ENTERPRISE_MONTHLY || 'price_mock_enterprise_monthly',
+    annual: process.env.STRIPE_PRICE_ENTERPRISE_ANNUAL || 'price_mock_enterprise_annual',
   }
 };
 
@@ -100,6 +105,14 @@ function normalizePlanName(planName: string): string {
 }
 
 class BillingService {
+  clearPlanCache(userId?: string): void {
+    if (userId) {
+      planCache.delete(userId);
+    } else {
+      planCache.clear();
+    }
+  }
+
   /**
    * Returns current user plan and limits. Falls back to 'free' if no active subscription found. Cached 5 minutes.
    */
@@ -202,7 +215,8 @@ class BillingService {
          ORDER BY created_at DESC LIMIT 1`,
         [userId]
       );
-      if (activeSub && activeSub.overage_enabled) {
+      if (process.env.DEBUG_BILLING) console.log('[DEBUG checkLimit activeSub]:', activeSub);
+      if (activeSub && (activeSub.overage_enabled === true || activeSub.overage_enabled === 'true')) {
         allowed = true;
         overage = true;
       }
@@ -398,6 +412,7 @@ class BillingService {
 
         // Clear cache
         planCache.delete(tenantId);
+        entitlementService.invalidateTenantCache(tenantId);
 
         // Check referral upgrades
         if (plan !== 'free') {
@@ -428,6 +443,7 @@ class BillingService {
           await query(`UPDATE tenants SET plan = 'free', stripe_subscription_id = NULL WHERE id = $1`, [tenantId]);
           await query(`UPDATE subscriptions SET status = 'cancelled' WHERE stripe_subscription_id = $1`, [sub.id]);
           planCache.delete(tenantId);
+          entitlementService.invalidateTenantCache(tenantId);
         }
         break;
       }
@@ -442,6 +458,7 @@ class BillingService {
             [customerId]
           );
           planCache.delete(t.id);
+          entitlementService.invalidateTenantCache(t.id);
         }
         break;
       }

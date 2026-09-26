@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -56,8 +57,9 @@ func main() {
 	mux := http.NewServeMux()
 	runtimeSvc.RegisterHTTPRoutes(mux)
 
-	// Add CORS middleware
-	handler := corsMiddleware(mux)
+	// Add Internal Service Authentication & CORS middleware
+	internalSecret := os.Getenv("INTERNAL_SERVICE_SECRET")
+	handler := corsMiddleware(internalAuthMiddleware(mux, internalSecret))
 
 	server := &http.Server{
 		Addr:         ":" + httpPort,
@@ -73,7 +75,12 @@ func main() {
 		log.Printf("   ├─ Metrics:  http://localhost:%s/metrics\n", httpPort)
 		log.Printf("   ├─ Sandbox:  POST http://localhost:%s/api/sandbox/exec\n", httpPort)
 		log.Printf("   ├─ Steps:    POST http://localhost:%s/api/agent/step\n", httpPort)
-		log.Printf("   └─ AgentBus: POST http://localhost:%s/api/bus/publish\n", httpPort)
+		log.Printf("   ├─ AgentBus: POST http://localhost:%s/api/bus/publish\n", httpPort)
+		if internalSecret != "" {
+			log.Printf("   └─ Auth:     Secured with INTERNAL_SERVICE_SECRET (X-Internal-Service-Key required)\n")
+		} else {
+			log.Printf("   └─ Auth:     Open local mode (INTERNAL_SERVICE_SECRET not set)\n")
+		}
 
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Fatal server error: %v", err)
@@ -95,11 +102,38 @@ func main() {
 	log.Println("✅ Agent-Runtime Service cleanly stopped.")
 }
 
+func internalAuthMiddleware(next http.Handler, expectedSecret string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Public endpoints that do not require internal service auth
+		if expectedSecret == "" || r.URL.Path == "/health" || r.URL.Path == "/metrics" || r.Method == http.MethodOptions {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		providedKey := r.Header.Get("X-Internal-Service-Key")
+		if providedKey == "" {
+			authHeader := r.Header.Get("Authorization")
+			if strings.HasPrefix(authHeader, "Bearer ") {
+				providedKey = strings.TrimPrefix(authHeader, "Bearer ")
+			}
+		}
+
+		if providedKey != expectedSecret {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"error":"UNAUTHORIZED","message":"Invalid or missing X-Internal-Service-Key for internal agent-runtime communication"}`))
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, X-Requested-With")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, X-Requested-With, X-Internal-Service-Key")
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)

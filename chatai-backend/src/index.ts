@@ -227,6 +227,8 @@ async function runMigrations() {
         );
 
         ALTER TABLE agent_memory ADD COLUMN IF NOT EXISTS embedding vector(1536);
+        ALTER TABLE agent_memory ADD COLUMN IF NOT EXISTS team_id UUID;
+        CREATE INDEX IF NOT EXISTS idx_agent_memory_team ON agent_memory(team_id);
       `)
     } catch (e: any) {
       console.warn('⚠️ Vector/Chunks tables skipped or already present (pgvector might be disabled):', e.message)
@@ -855,7 +857,17 @@ import multimodalRoutes from './routes/multimodal'
 import templatesRoutes from './routes/templates'
 import referralsRoutes from './routes/referrals'
 import sharesRoutes from './routes/shares'
+import teamDashboardRoutes from './routes/team-dashboard'
+import companyDashboardRoutes from './routes/company-dashboard'
+import enterpriseRoutes from './routes/enterprise.routes'
+import meteringRoutes from './routes/metering'
+import codeSearchRoutes from './routes/code-search'
+import permissionsRoutes from './routes/permissions'
+import evaluationsRoutes from './routes/evaluations'
+import sessionReplayRoutes from './routes/session-replay'
+import securityRoutes from './routes/security'
 import { authMiddleware } from './middleware/auth.middleware'
+
 
 
 import { initDailyReports } from './jobs/daily-report'
@@ -962,6 +974,27 @@ app.use('/api/integrations', integrationsRoutes)
 app.use('/api/actions', actionRoutes)
 app.use('/api/tasks', taskRoutes)
 app.use('/api/templates', templatesRoutes)
+app.use('/api/team-workforce', authMiddleware, teamDashboardRoutes)
+app.use('/team-workforce', authMiddleware, teamDashboardRoutes)
+app.use('/api/company', authMiddleware, companyDashboardRoutes)
+app.use('/company', authMiddleware, companyDashboardRoutes)
+app.use('/api/enterprise', enterpriseRoutes)
+app.use('/enterprise', enterpriseRoutes)
+app.use('/api/metering', meteringRoutes)
+app.use('/metering', meteringRoutes)
+app.use('/api/code', codeSearchRoutes)
+app.use('/code', codeSearchRoutes)
+app.use('/api/permissions', permissionsRoutes)
+app.use('/permissions', permissionsRoutes)
+app.use('/api/evaluations', evaluationsRoutes)
+app.use('/evaluations', evaluationsRoutes)
+app.use('/api/sessions', sessionReplayRoutes)
+app.use('/sessions', sessionReplayRoutes)
+app.use('/api/public', sessionReplayRoutes)
+app.use('/public', sessionReplayRoutes)
+app.use('/api/security', securityRoutes)
+app.use('/security', securityRoutes)
+
 
 app.post('/api/runs/:runId/actions/:actionId/approve', authMiddleware, async (req, res) => {
   const { runId, actionId } = req.params

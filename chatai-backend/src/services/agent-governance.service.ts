@@ -1,6 +1,7 @@
 import { logger } from './logger.service';
 import { db } from '../db'
 import crypto from 'crypto'
+import { AutonomyLevel } from '../config/team-templates.config'
 
 export interface GovernancePolicy {
   can_send_emails: boolean
@@ -11,6 +12,181 @@ export interface GovernancePolicy {
 }
 
 class AgentGovernanceService {
+  /**
+   * Enforces 4-tier org chart autonomy levels at the tool execution boundary:
+   * - observe_only: Only read/query tools permitted; all mutating tools rejected.
+   * - suggest_only: Formulates recommendations; mutating tools return simulated proposals.
+   * - act_with_approval: Routine read/write allowed; high-impact & destructive actions require human approval.
+   * - fully_autonomous: Full execution within safety guardrails.  /**
+   * Evaluates if a tool invocation is allowed based on the agent's AutonomyLevel matrix
+   */
+  validateToolExecutionByAutonomy(
+    arg1: string | { tenantId?: string; runId?: string; role?: string; toolName?: string; payload?: any; autonomyLevel?: AutonomyLevel | string },
+    arg2?: string,
+    arg3?: any,
+    arg4?: string
+  ): { allowed: boolean; reason?: string; requiresApproval?: boolean } {
+    let autonomyLevel: string = 'act_with_approval'
+    let toolName: string = ''
+    let payload: any = {}
+    let role: string = 'agent'
+    let runId: string | undefined
+    let tenantId: string = '00000000-0000-0000-0000-000000000000'
+    let targetPath: string | undefined
+
+    if (typeof arg1 === 'string') {
+      autonomyLevel = arg1
+      toolName = arg2 || ''
+      payload = arg3 || {}
+      role = arg4 || 'agent'
+    } else if (arg1 && typeof arg1 === 'object') {
+      autonomyLevel = arg1.autonomyLevel || 'act_with_approval'
+      toolName = arg1.toolName || ''
+      payload = arg1.payload || {}
+      role = arg1.role || 'agent'
+      runId = arg1.runId
+      tenantId = arg1.tenantId || '00000000-0000-0000-0000-000000000000'
+      targetPath = payload?.filePath || payload?.path || payload?.targetPath
+    }
+
+    // Check with permission system service (standing rules, granular scopes, danger invariants)
+    try {
+      const { permissionSystemService } = require('./permission-system.service')
+      const permEval = permissionSystemService.evaluatePermission({
+        tenantId,
+        agentRole: role,
+        toolName,
+        targetPath,
+        payload,
+        autonomyLevel
+      })
+
+      if (permEval.allowed && !permEval.requiresApproval) {
+        return { allowed: true, requiresApproval: false }
+      }
+
+      if (permEval.decisionCode === 'blocked_by_deny_rule') {
+        return { allowed: false, requiresApproval: false, reason: permEval.reason }
+      }
+
+      if (permEval.requiresApproval) {
+        const isApproved = payload?.approved === true || payload?.preApproved === true
+        if (isApproved) {
+          return { allowed: true, requiresApproval: false }
+        }
+        if (runId) {
+          try {
+            const { runEmitter } = require('./sse.service')
+            runEmitter.emitEvent(runId, 'action:approval_required', {
+              toolName,
+              role,
+              payload,
+              isDestructive: permEval.isDestructive,
+              message: permEval.reason
+            })
+          } catch {}
+        }
+        return {
+          allowed: false,
+          requiresApproval: true,
+          reason: permEval.reason
+        }
+      }
+    } catch {}
+
+    const level = (autonomyLevel || 'act_with_approval').toLowerCase() as AutonomyLevel
+    const normalizedTool = (toolName || '').toLowerCase().trim()
+
+    const READ_ONLY_TOOLS = new Set([
+      'file_read',
+      'read_file',
+      'query_team_memory',
+      'query_memory',
+      'inspect_runtime_metrics',
+      'inspect_metrics',
+      'web_search',
+      'fetch_page_content',
+      'extract_citations',
+      'grammar_check',
+      'sentiment_check',
+      'seo_keyword_density',
+    ])
+
+    const HIGH_IMPACT_MUTATING_TOOLS = new Set([
+      'file_write',
+      'write_file',
+      'execute_sandbox_code',
+      'shell_exec',
+      'delete_file',
+      'file_delete',
+      'git_commit',
+      'send_email',
+      'publish_live_campaign',
+      'spend_ad_budget',
+      'restart_production_cluster',
+      'delete_database'
+    ])
+
+    // 1. Observe-Only Autonomy Gate: Only explicit read-only tools permitted
+    if (level === 'observe_only') {
+      if (!READ_ONLY_TOOLS.has(normalizedTool)) {
+        return {
+          allowed: false,
+          requiresApproval: true,
+          reason: `Autonomy Level Violation: Role '${role}' is set to 'observe_only' and cannot invoke mutating tool '${toolName}'.`
+        }
+      }
+      return { allowed: true }
+    }
+
+    // 2. Suggest-Only Autonomy Gate: Allows read tools, blocks mutating actions
+    if (level === 'suggest_only') {
+      if (HIGH_IMPACT_MUTATING_TOOLS.has(normalizedTool) || !READ_ONLY_TOOLS.has(normalizedTool)) {
+        return {
+          allowed: false,
+          requiresApproval: true,
+          reason: `Autonomy Level Notice: Role '${role}' is set to 'suggest_only'. Action '${toolName}' held as a proposed suggestion awaiting approval.`
+        }
+      }
+      return { allowed: true }
+    }
+
+    // 3. Act-With-Approval Autonomy Gate
+    if (level === 'act_with_approval') {
+      const isHighImpact = HIGH_IMPACT_MUTATING_TOOLS.has(normalizedTool) ||
+        normalizedTool.includes('delete') ||
+        normalizedTool.includes('write') ||
+        normalizedTool.includes('exec') ||
+        normalizedTool.includes('commit')
+
+      if (isHighImpact) {
+        const isApproved = payload?.approved === true || payload?.preApproved === true
+        if (!isApproved) {
+          if (runId) {
+            try {
+              const { runEmitter } = require('./sse.service')
+              runEmitter.emitEvent(runId, 'action:approval_required', {
+                toolName,
+                role,
+                payload,
+                message: `Approval Gate: Action '${toolName}' by '${role}' requires operator approval before execution.`
+              })
+            } catch {}
+          }
+          return {
+            allowed: false,
+            requiresApproval: true,
+            reason: `Pre-execution gate blocked tool '${toolName}' for role '${role}': requires operator approval under 'act_with_approval' autonomy level.`
+          }
+        }
+      }
+      return { allowed: true, requiresApproval: false }
+    }
+
+    // 4. Fully Autonomous Mode
+    return { allowed: true, requiresApproval: false }
+  }
+
   /**
    * Asserts if an agent has permission to execute an action
    */

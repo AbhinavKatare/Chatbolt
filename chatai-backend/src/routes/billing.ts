@@ -3,6 +3,8 @@ import { Router, Request, Response } from 'express'
 import Stripe from 'stripe'
 import { authMiddleware } from '../middleware/auth.middleware'
 import { billingService } from '../services/billing.service'
+import { entitlementService, FEATURE_TIER_MATRIX, FeatureKey } from '../services/entitlement.service'
+import { enterpriseLicenseService } from '../enterprise/enterprise-license.service'
 
 const router = Router()
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'mock_key', {
@@ -14,6 +16,73 @@ router.get('/plan', authMiddleware, async (req: Request, res: Response) => {
   try {
     const plan = await billingService.getUserPlan(req.tenantId!)
     res.json({ plan })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// GET /billing/entitlements — returns full server-side entitlement status
+router.get('/entitlements', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.tenantId!
+    const { plan, isEnterpriseLicensed, source } = await entitlementService.resolveTenantTier(tenantId)
+    
+    // Evaluate all known features
+    const features: Record<string, boolean> = {}
+    for (const feat of Object.keys(FEATURE_TIER_MATRIX) as FeatureKey[]) {
+      const check = await entitlementService.checkEntitlement(tenantId, feat)
+      features[feat] = check.allowed
+    }
+
+    res.json({
+      plan,
+      isEnterpriseLicensed,
+      source,
+      features,
+      verifiedAt: new Date().toISOString()
+    })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /billing/activate-license — activates a digital enterprise license key
+router.post('/activate-license', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.tenantId!
+    const { licenseKey } = req.body
+
+    if (!licenseKey) {
+      return res.status(400).json({ error: 'License key is required.' })
+    }
+
+    const validation = enterpriseLicenseService.validateLicenseKey(licenseKey, tenantId)
+    if (!validation.valid || !validation.entitlements) {
+      return res.status(400).json({ error: validation.error || 'Invalid enterprise license key.' })
+    }
+
+    // Persist key to tenant metadata
+    const { db } = await import('../db')
+    const tenantRes = await db.query('SELECT metadata FROM tenants WHERE id = $1', [tenantId])
+    const currentMeta = tenantRes.rows[0]?.metadata
+    const metaObj = typeof currentMeta === 'string' ? JSON.parse(currentMeta) : (currentMeta || {})
+    metaObj.enterprise_license_key = licenseKey
+    metaObj.enterprise_licensed_at = new Date().toISOString()
+
+    await db.query('UPDATE tenants SET metadata = $1, plan = $2 WHERE id = $3', [
+      JSON.stringify(metaObj),
+      'enterprise',
+      tenantId
+    ])
+
+    // Invalidate caches
+    entitlementService.invalidateTenantCache(tenantId)
+
+    res.json({
+      success: true,
+      message: 'Enterprise license activated successfully.',
+      entitlements: validation.entitlements
+    })
   } catch (err: any) {
     res.status(500).json({ error: err.message })
   }
@@ -62,7 +131,7 @@ router.get('/usage', authMiddleware, async (req: Request, res: Response) => {
 router.post('/checkout', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { plan, interval = 'monthly' } = req.body
-    if (plan !== 'pro' && plan !== 'team') {
+    if (plan !== 'pro' && plan !== 'team' && plan !== 'enterprise') {
       return res.status(400).json({ error: 'Invalid plan' })
     }
     const url = await billingService.createCheckoutSession(req.tenantId!, plan, interval)

@@ -71,8 +71,13 @@ class AgentBrainClient {
     this.isEnabled = process.env.USE_PYTHON_AGENT_BRAIN !== 'false'
     
     // Migrated roles enabled for Python LangGraph reasoning loop
-    const rolesStr = process.env.AGENT_BRAIN_ROLES || 'researcher,writer,code,analyst,planner'
+    const rolesStr = process.env.AGENT_BRAIN_ROLES || 'researcher,writer,code,analyst,planner,team_lead,lead'
     this.migratedRoles = new Set(rolesStr.split(',').map(r => r.trim().toLowerCase()))
+  }
+
+  private getAuthHeaders(): Record<string, string> {
+    const secret = process.env.INTERNAL_SERVICE_SECRET
+    return secret ? { 'X-Internal-Service-Key': secret } : {}
   }
 
   /**
@@ -95,7 +100,10 @@ class AgentBrainClient {
     }
 
     try {
-      const res = await axios.get(`${this.baseUrl}/health`, { timeout: 1500 })
+      const res = await axios.get(`${this.baseUrl}/health`, { 
+        timeout: 1500,
+        headers: this.getAuthHeaders()
+      })
       const healthy = res.status === 200 && res.data?.status === 'healthy'
       this.lastHealthCheck = { healthy, timestamp: now }
       return healthy
@@ -108,15 +116,31 @@ class AgentBrainClient {
   /**
    * Executes a single ReAct reasoning step via the Python agent-brain service
    */
-  async executeStep(request: BrainStepRequest): Promise<BrainStepResponse> {
+  async executeStep(request: BrainStepRequest, retries = 2): Promise<BrainStepResponse> {
     const url = `${this.baseUrl}/agent/step`
     logger.info(`[AgentBrain] Sending ReAct step for role '${request.agent_role}' (run: ${request.run_id})`)
 
-    const res = await axios.post<BrainStepResponse>(url, request, {
-      timeout: 60000,
-    })
+    let lastError: any = null
+    for (let attempt = 1; attempt <= retries + 1; attempt++) {
+      try {
+        const res = await axios.post<BrainStepResponse>(url, request, {
+          timeout: 60000,
+          headers: this.getAuthHeaders()
+        })
+        return res.data
+      } catch (err: any) {
+        lastError = err
+        const isTransient = err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT' || err.code === 'ECONNREFUSED' || err.message?.includes('socket hang up')
+        if (attempt <= retries && isTransient) {
+          logger.warn(`[AgentBrain] Transient error (${err.code || err.message}), retrying step attempt ${attempt + 1}/${retries + 1}...`)
+          await new Promise(r => setTimeout(r, 100 * attempt))
+          continue
+        }
+        break
+      }
+    }
 
-    return res.data
+    throw lastError
   }
 }
 

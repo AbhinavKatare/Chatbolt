@@ -1,0 +1,65 @@
+Business Source License 1.1
+
+Parameters:
+
+Licensor: Chatbolt Inc.
+Licensed Work: The Chatbolt software, including core runtime, agent orchestration,
+               and related documentation in this repository.
+Additional Use Grant:
+  You are granted the non-exclusive right to use, copy, modify, distribute, and
+  self-host the Licensed Work for internal business operations, evaluation, testing,
+  development, educational, and personal non-commercial purposes.
+
+  You may NOT:
+  1. Provide the Licensed Work or any derivative work as a managed, hosted, or cloud
+     service (such as SaaS, PaaS, or API service) to third parties for commercial gain
+     or in competition with Chatbolt Inc.
+  2. Distribute or re-launch the Licensed Work under a different name or white-label
+     branding as a competing software product or service.
+
+  To use the software beyond this Additional Use Grant (e.g. for commercial hosted
+  offerings or OEM embedding), you must obtain an Enterprise Commercial License from
+  Chatbolt Inc. (contact: licensing@chatbolt.ai).
+
+Change Date: 2030-01-01
+Change License: Apache License, Version 2.0
+
+----------------------------------------------------------------------
+
+Terms:
+
+The Licensor hereby grants you the right to copy, modify, create derivative
+works, redistribute, and make non-production and permitted production use
+of the Licensed Work, subject to the terms and conditions of this License.
+
+1. Grant of License.
+Subject to the terms of this License, Licensor grants you a non-exclusive,
+worldwide, royalty-free copyright license under its copyrights in the
+Licensed Work to use, reproduce, prepare derivative works of, display,
+perform, and distribute the Licensed Work and derivative works thereof solely
+in accordance with the Additional Use Grant.
+
+2. Notice and Attribution.
+You must retain all copyright, patent, trademark, and attribution notices
+contained in the Licensed Work in all copies or derivative works.
+
+3. Change to Open Source License.
+Effective on the Change Date, the Licensed Work shall automatically convert to
+and be governed by the terms of the Change License (Apache License 2.0).
+
+4. Disclaimer of Warranties.
+THE LICENSED WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+5. Limitation of Liability.
+IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE LICENSED WORK OR THE USE OR OTHER
+DEALINGS IN THE LICENSED WORK.
+
+6. Trademark.
+This License does not grant permission to use the trade names, trademarks,
+service marks, or product names of the Licensor, except as required for
+reasonable and customary use in describing the origin of the Licensed Work.
+See TRADEMARK.md for details.

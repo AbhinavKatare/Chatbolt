@@ -15,14 +15,32 @@ class MockChatModel(BaseChatModel):
     """
     def _generate(self, messages, stop=None, run_manager=None, **kwargs):
         last_msg = messages[-1].content if messages else ""
+        has_tool_response = any(getattr(m, "type", "") == "tool" or hasattr(m, "tool_call_id") for m in messages)
         
+        # If tool response was already returned, complete the ReAct step
+        if has_tool_response:
+            ai_msg = AIMessage(content="[TeamLead] Mission decomposed, tasks assigned, and team coordination completed successfully.")
+        # If prompt includes delegation or team lead tasks
+        elif "delegate" in last_msg.lower() or "mission" in last_msg.lower() or "campaign" in last_msg.lower():
+            ai_msg = AIMessage(
+                content="I will decompose the mission and delegate the initial research task to our market researcher.",
+                tool_calls=[{
+                    "name": "delegate_task",
+                    "args": {
+                        "target_role": "researcher",
+                        "task_description": "Analyze competitor positioning and customer pain points for product announcement",
+                        "priority": "high"
+                    },
+                    "id": "call_mock_delegate_1"
+                }]
+            )
         # If prompt includes tool mentions or search request, emit a mock tool call
-        if "search" in last_msg.lower() or "find" in last_msg.lower() or "tools" in str(kwargs).lower():
+        elif "search" in last_msg.lower() or "find" in last_msg.lower() or "tools" in str(kwargs).lower():
             ai_msg = AIMessage(
                 content="I will search for the requested information.",
                 tool_calls=[{
                     "name": "web_search",
-                    "args": {"query": "NVIDIA NIM features and architecture"},
+                    "args": {"query": "Autonomous agent teams and multi-agent coordination"},
                     "id": "call_mock_auto_1"
                 }]
             )
@@ -50,14 +68,12 @@ def get_llm(config: ProviderConfig) -> BaseChatModel:
     temp = config.temperature
     max_tokens = config.max_tokens
 
-    # Check for mock / test environment or unconfigured test keys
+    # Check for explicit mock requests, mock provider, or mock environment flag
     if (
         provider in ("mock", "fake")
-        or api_key.startswith("mock")
-        or api_key.startswith("test")
-        or api_key == "mock-chat-model"
+        or api_key in ("mock", "mock-chat-model", "fake")
         or os.environ.get("AGENT_BRAIN_MOCK_LLM") == "true"
-        or (not api_key and not os.environ.get("OPENROUTER_API_KEY") and not os.environ.get("OPENAI_API_KEY"))
+        or (not api_key and not os.environ.get("OPENROUTER_API_KEY") and not os.environ.get("OPENAI_API_KEY") and provider not in ("ollama", "custom", "openai_compatible"))
     ):
         return MockChatModel()
 
@@ -128,7 +144,7 @@ def get_llm(config: ProviderConfig) -> BaseChatModel:
             max_tokens=max_tokens,
         )
 
-    # 5. Standard OpenAI (GPT-4o, GPT-4o-mini, o1, o3-mini)
+    # 6. Standard OpenAI (GPT-4o, GPT-4o-mini, o1, o3-mini)
     else:
         if not api_key:
             api_key = os.environ.get("OPENAI_API_KEY", "mock-openai-key")
@@ -139,3 +155,32 @@ def get_llm(config: ProviderConfig) -> BaseChatModel:
             max_tokens=max_tokens,
             base_url=config.base_url or None,
         )
+
+def get_resilient_llm(config: ProviderConfig) -> BaseChatModel:
+    """
+    Creates an LLM with automated fallback chains (e.g. OpenRouter -> HF -> Anthropic -> OpenAI -> Ollama/Mock).
+    If the primary model fails or rate-limits, LangChain automatically executes the next provider.
+    """
+    primary = get_llm(config)
+    if isinstance(primary, MockChatModel) or os.environ.get("AGENT_BRAIN_MOCK_LLM") == "true":
+        return primary
+
+    fallbacks = []
+    # Configure fallback list based on available keys
+    if os.environ.get("OPENROUTER_API_KEY") and config.provider != "openrouter":
+        fallbacks.append(get_llm(ProviderConfig(provider="openrouter", model="meta-llama/llama-3.3-70b-instruct")))
+    if os.environ.get("HUGGINGFACE_API_KEY") and config.provider != "huggingface":
+        fallbacks.append(get_llm(ProviderConfig(provider="huggingface", model="Qwen/Qwen2.5-72B-Instruct")))
+    if os.environ.get("ANTHROPIC_API_KEY") and config.provider != "anthropic":
+        fallbacks.append(get_llm(ProviderConfig(provider="anthropic", model="claude-3-5-sonnet-20241022")))
+    if os.environ.get("OPENAI_API_KEY") and config.provider != "openai":
+        fallbacks.append(get_llm(ProviderConfig(provider="openai", model="gpt-4o-mini")))
+
+    if fallbacks:
+        try:
+            return primary.with_fallbacks(fallbacks)
+        except Exception:
+            return primary
+
+    return primary
+

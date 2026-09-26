@@ -13,9 +13,87 @@ export interface JournalEntry {
   undo_expires_at: string
 }
 
+export interface FailureRecoveryLogOptions {
+  tenantId: string
+  runId: string
+  failureClass: 'go_runtime' | 'python_brain' | 'provider' | 'team_role'
+  errorMessage: string
+  attemptNumber?: number
+  recoveryAction: string
+  outcome: 'recovered' | 'escalated' | 'failed'
+  details?: Record<string, any>
+}
+
 const UNDO_TTL_SECONDS = 120
 
 class ActionJournalService {
+  /**
+   * Logs a failure event and its automated recovery attempt to the action journal.
+   * Leverages existing action_journal table schema without requiring a parallel table.
+   */
+  async logFailureRecovery(options: FailureRecoveryLogOptions): Promise<string> {
+    const { tenantId, runId, failureClass, errorMessage, attemptNumber = 1, recoveryAction, outcome, details = {} } = options
+    const actionType = `failure_recovery:${failureClass}`
+    const metadata = {
+      failure_class: failureClass,
+      error_message: errorMessage,
+      attempt_number: attemptNumber,
+      recovery_action: recoveryAction,
+      outcome,
+      timestamp: new Date().toISOString(),
+      ...details,
+    }
+
+    try {
+      const { rows } = await db.query(
+        `INSERT INTO action_journal
+         (tenant_id, run_id, action_type, action_metadata, is_reversible, reversed, undo_expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id`,
+        [tenantId, runId, actionType, JSON.stringify(metadata), false, false, new Date(Date.now() + 86400 * 1000).toISOString()]
+      )
+      const actionId = rows[0]?.id || `fail-rec-${Date.now()}`
+      logger.info(`[Action Journal] Logged failure recovery (${failureClass}, attempt ${attemptNumber}): action='${recoveryAction}' outcome='${outcome}'`)
+
+      // Emit real-time SSE failure recovery event
+      try {
+        const { runEmitter } = require('./sse.service')
+        runEmitter.emitEvent(runId, `failure:${outcome}`, {
+          actionId,
+          failureClass,
+          errorMessage,
+          recoveryAction,
+          outcome,
+          attemptNumber,
+        })
+      } catch (emitErr: any) {
+        logger.warn('[Action Journal] Failed to emit failure SSE event: ' + emitErr.message)
+      }
+
+      return actionId
+    } catch (err: any) {
+      logger.warn('[Action Journal] Could not log failure recovery: ' + err.message)
+      return 'noop'
+    }
+  }
+
+  /**
+   * Retrieves failure and recovery history for a tenant or specific run.
+   */
+  async getFailureHistory(tenantId: string, runId?: string): Promise<JournalEntry[]> {
+    try {
+      const sql = runId
+        ? `SELECT * FROM action_journal WHERE tenant_id = $1 AND run_id = $2 AND action_type LIKE 'failure_recovery:%' ORDER BY created_at DESC`
+        : `SELECT * FROM action_journal WHERE tenant_id = $1 AND action_type LIKE 'failure_recovery:%' ORDER BY created_at DESC LIMIT 50`
+      const params = runId ? [tenantId, runId] : [tenantId]
+      const { rows } = await db.query(sql, params)
+      return rows as JournalEntry[]
+    } catch (err: any) {
+      logger.warn('[Action Journal] Could not fetch failure history: ' + err.message)
+      return []
+    }
+  }
+
   /**
    * Logs a completed action to the rollback ledger.
    * Stores the action metadata needed to reverse the operation.
@@ -314,6 +392,139 @@ class ActionJournalService {
 
 
   /**
+   * Logs a structured agent decision with an explicit rationale to the accountability ledger.
+   */
+  async logDecisionRationale(options: {
+    tenantId: string
+    runId?: string
+    agentRole: string
+    teamId?: string
+    companyId?: string
+    decision?: string
+    actionTaken?: string
+    whyChosen: string
+    alternativesConsidered?: string[]
+    confidence?: number
+    context?: Record<string, any>
+    details?: Record<string, any>
+  }): Promise<string> {
+    const {
+      tenantId,
+      agentRole,
+      teamId = 'general-team',
+      companyId,
+      whyChosen,
+      alternativesConsidered = [],
+      confidence = 0.9,
+      context = {},
+      details = {}
+    } = options
+
+    const runId = options.runId || `run_${Date.now()}`
+    const decision = options.decision || options.actionTaken || 'strategic_action'
+
+    const metadata = {
+      agent_role: agentRole,
+      team_id: teamId,
+      company_id: companyId,
+      decision,
+      action_taken: decision,
+      why_chosen: whyChosen,
+      alternatives_considered: alternativesConsidered,
+      confidence,
+      timestamp: new Date().toISOString(),
+      ...context,
+      ...details
+    }
+
+    try {
+      const { rows } = await db.query(
+        `INSERT INTO action_journal
+         (tenant_id, run_id, action_type, action_metadata, is_reversible, reversed, undo_expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id`,
+        [tenantId, runId, 'accountability:decision', JSON.stringify(metadata), false, false, new Date(Date.now() + 86400 * 30 * 1000).toISOString()]
+      )
+      const actionId = rows[0]?.id || `acc-${Date.now()}`
+      const safeDecision = (decision || '').slice(0, 50)
+      const safeWhy = (whyChosen || '').slice(0, 40)
+      logger.info(`[Accountability] Logged decision rationale by '${agentRole}' for '${safeDecision}...' (why: ${safeWhy}...)`)
+
+      try {
+        const { runEmitter } = require('./sse.service')
+        runEmitter.emitEvent(runId, 'accountability:logged', {
+          actionId,
+          agentRole,
+          teamId,
+          decision,
+          whyChosen,
+          confidence
+        })
+      } catch {}
+
+      return actionId
+    } catch (err: any) {
+      logger.warn('[Accountability] Could not log decision rationale: ' + err.message)
+      return 'noop'
+    }
+  }
+
+  /**
+   * Retrieves the accountability decision ledger for a tenant, company, or team
+   */
+  async getAccountabilityLedger(
+    tenantId: string,
+    filter?: string | { runId?: string; teamId?: string; companyId?: string }
+  ): Promise<any[]> {
+    try {
+      const filterObj = typeof filter === 'string' ? { companyId: filter } : (filter || {})
+      let sql = `SELECT * FROM action_journal WHERE tenant_id = $1 AND action_type = 'accountability:decision'`
+      const params: any[] = [tenantId]
+
+      if (filterObj?.runId) {
+        sql += ` AND run_id = $${params.length + 1}`
+        params.push(filterObj.runId)
+      }
+
+      sql += ` ORDER BY created_at DESC LIMIT 100`
+      const { rows } = await db.query(sql, params)
+
+      let results = rows as any[]
+      if (filterObj?.teamId) {
+        results = results.filter(r => {
+          const m = typeof r.action_metadata === 'string' ? JSON.parse(r.action_metadata) : r.action_metadata
+          return m?.team_id === filterObj.teamId
+        })
+      }
+      if (filterObj?.companyId) {
+        results = results.filter(r => {
+          const m = typeof r.action_metadata === 'string' ? JSON.parse(r.action_metadata) : r.action_metadata
+          return m?.company_id === filterObj.companyId
+        })
+      }
+
+      // Map parsed metadata properties for convenience
+      return results.map(r => {
+        const m = typeof r.action_metadata === 'string' ? JSON.parse(r.action_metadata) : (r.action_metadata || {})
+        return {
+          ...r,
+          agentRole: m.agent_role || m.agentRole,
+          actionTaken: m.action_taken || m.decision,
+          decision: m.decision,
+          whyChosen: m.why_chosen || m.whyChosen,
+          alternativesConsidered: m.alternatives_considered || m.alternativesConsidered || [],
+          confidence: m.confidence ?? 0.9,
+          companyId: m.company_id || m.companyId,
+          teamId: m.team_id || m.teamId
+        }
+      })
+    } catch (err: any) {
+      logger.warn('[Accountability] Could not fetch accountability ledger: ' + err.message)
+      return []
+    }
+  }
+
+  /**
    * Creates the action_journal table if it doesn't exist.
    * Safe to call on startup.
    */
@@ -339,3 +550,4 @@ class ActionJournalService {
 }
 
 export const actionJournalService = new ActionJournalService()
+

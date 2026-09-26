@@ -211,4 +211,98 @@ router.delete('/facts', async (req: Request, res: Response) => {
   }
 })
 
+// ── Cross-Session Memory per Team & Role ─────────────────────────────────────
+
+// GET /memory/cross-session - List & filter memories
+router.get('/cross-session', async (req: Request, res: Response) => {
+  const tenantId = req.tenantId!
+  const teamId = req.query.teamId as string | undefined
+  const agentRole = req.query.agentRole as string | undefined
+  const category = req.query.category as string | undefined
+  const search = req.query.search as string | undefined
+  const limit = req.query.limit ? parseInt(req.query.limit as string) : 100
+
+  try {
+    const { listCrossSessionMemories } = await import('../services/memory.service')
+    const memories = await listCrossSessionMemories({
+      tenantId,
+      teamId,
+      agentRole,
+      category,
+      search,
+      limit
+    })
+    res.json({ success: true, memories, total: memories.length })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /memory/cross-session - Create or update cross-session memory
+router.post('/cross-session', async (req: Request, res: Response) => {
+  const tenantId = req.tenantId!
+  const { teamId, agentRole, key, value, content, category, importance, confidence, source } = req.body
+
+  const memoryValue = value || content
+  const memoryKey = key || (memoryValue ? memoryValue.slice(0, 32).toLowerCase().replace(/[^a-z0-9]+/g, '_') : '')
+
+  if (!memoryValue) {
+    return res.status(400).json({ error: 'value or content is required' })
+  }
+
+  try {
+    const { saveCrossSessionMemory } = await import('../services/memory.service')
+    const item = await saveCrossSessionMemory({
+      tenantId,
+      teamId,
+      agentRole,
+      key: memoryKey,
+      value: memoryValue,
+      category,
+      importance,
+      confidence,
+      source
+    })
+    res.json({ success: true, item, memory: item })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// PUT /memory/cross-session/:id - Update existing memory item
+router.put('/cross-session/:id', async (req: Request, res: Response) => {
+  const tenantId = req.tenantId!
+  const id = req.params.id
+  const { value, category, importance, confidence } = req.body
+
+  try {
+    const { updateCrossSessionMemory } = await import('../services/memory.service')
+    const updated = await updateCrossSessionMemory(tenantId, id, { value, category, importance, confidence })
+    if (!updated) {
+      return res.status(404).json({ error: 'Memory item not found' })
+    }
+    res.json({ success: true, item: updated })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// DELETE /memory/cross-session/:id - Delete memory item
+router.delete('/cross-session/:id', async (req: Request, res: Response) => {
+  const tenantId = req.tenantId!
+  const id = req.params.id
+
+  try {
+    const { deleteCrossSessionMemory } = await import('../services/memory.service')
+    const deleted = await deleteCrossSessionMemory(tenantId, id)
+    if (!deleted) {
+      return res.status(404).json({ error: 'Memory item not found' })
+    }
+    res.json({ success: true, message: `Memory item ${id} deleted successfully` })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 export default router
+

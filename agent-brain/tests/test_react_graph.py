@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from langchain_core.messages import AIMessage
-from app.schemas import StepRequest, ToolDefinition, MessageItem, ProviderConfig
+from app.schemas import StepRequest, ToolDefinition, MessageItem, ProviderConfig, ToolCallRequest
 from app.graph.prompt_builder import build_messages, build_system_message
 from app.graph.react_engine import run_react_step
 
@@ -57,7 +57,7 @@ def test_react_step_tool_call_emission():
         ]
     )
 
-    with patch("app.graph.react_engine.get_llm", return_value=mock_llm):
+    with patch("app.graph.react_engine.get_resilient_llm", return_value=mock_llm):
         res = run_react_step(req)
 
     assert res.status == "tool_call_required"
@@ -83,9 +83,72 @@ def test_react_step_final_completion():
         ]
     )
 
-    with patch("app.graph.react_engine.get_llm", return_value=mock_llm):
+    with patch("app.graph.react_engine.get_llm", return_value=mock_llm), \
+         patch("app.graph.react_engine.get_resilient_llm", return_value=mock_llm):
         res = run_react_step(req)
 
     assert res.status == "completed"
     assert len(res.tool_calls) == 0
     assert "comprehensive research report" in str(res.final_output)
+
+def test_stuck_loop_detection_and_critic_pass():
+    # Mock LLM that returns a repeating tool call first, then breaks out on critic prompt
+    mock_llm = MagicMock()
+    mock_llm.bind_tools.return_value = mock_llm
+    
+    # 1st call: returns duplicate web_search call
+    # 2nd call (critic): returns synthesized answer
+    mock_llm.invoke.side_effect = [
+        AIMessage(content="Repeating search", tool_calls=[{"name": "web_search", "args": {"query": "stuck query"}, "id": "call_stuck_3"}]),
+        AIMessage(content="I have synthesized the available research to break the loop and conclude the analysis."),
+    ]
+
+    req = StepRequest(
+        run_id="run-stuck-1",
+        step_id="step-4",
+        task="Gather competitive intelligence",
+        agent_role="researcher",
+        history=[
+            MessageItem(
+                role="assistant",
+                content="Searching...",
+                tool_calls=[ToolCallRequest(call_id="call_stuck_1", tool_name="web_search", arguments={"query": "stuck query"})]
+            ),
+            MessageItem(role="tool", content="Result 1", tool_call_id="call_stuck_1"),
+            MessageItem(
+                role="assistant",
+                content="Searching again...",
+                tool_calls=[ToolCallRequest(call_id="call_stuck_2", tool_name="web_search", arguments={"query": "stuck query"})]
+            ),
+            MessageItem(role="tool", content="Result 2", tool_call_id="call_stuck_2"),
+        ],
+        available_tools=[
+            ToolDefinition(name="web_search", description="Search the web")
+        ]
+    )
+
+    with patch("app.graph.react_engine.get_resilient_llm", return_value=mock_llm):
+        res = run_react_step(req)
+
+    assert res.critic_applied is True
+    assert res.status == "completed"
+    assert "Self-Healed via Critic" in str(res.final_output)
+    assert len(res.tool_calls) == 0
+
+def test_provider_exhausted_pause_handling():
+    mock_llm = MagicMock()
+    mock_llm.invoke.side_effect = Exception("OpenRouter API 429 Rate Limit: Monthly quota exceeded on all backup keys")
+
+    req = StepRequest(
+        run_id="run-fail-provider",
+        step_id="step-1",
+        task="Draft technical docs",
+        agent_role="writer",
+    )
+
+    with patch("app.graph.react_engine.get_resilient_llm", return_value=mock_llm):
+        res = run_react_step(req)
+
+    assert res.status == "provider_exhausted_pause"
+    assert "Rate Limit" in str(res.error)
+

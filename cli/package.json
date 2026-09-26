@@ -1,0 +1,16 @@
+{
+  "name": "@chatbolt/cli",
+  "version": "1.0.0",
+  "description": "Non-intrusive developer CLI for Chatbolt multi-agent platform",
+  "main": "dist/index.js",
+  "bin": {
+    "chatbolt": "./bin/chatbolt.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "tsx bin/chatbolt.ts"
+  },
+  "keywords": ["chatbolt", "ai-agents", "cli", "automation"],
+  "author": "Chatbolt Team",
+  "license": "Apache-2.0"
+}

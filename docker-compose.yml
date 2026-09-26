@@ -1,0 +1,110 @@
+version: '3.8'
+
+services:
+  # -------------------------------------------------------------
+  # 1. PostgreSQL + pgvector (State, Workflows & Vector Memory)
+  # -------------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: chatbolt-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres_password_change_me}
+      POSTGRES_DB: chatai
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./chatai-backend/src/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d chatai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # -------------------------------------------------------------
+  # 2. Go Agent Runtime (Concurrency, Supervision & Sandbox Exec)
+  # -------------------------------------------------------------
+  agent-runtime:
+    build:
+      context: ./agent-runtime
+      dockerfile: Dockerfile
+    container_name: chatbolt-agent-runtime
+    restart: unless-stopped
+    environment:
+      PORT: "8081"
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-chatbolt-internal-secret-production-key}
+      MAX_CONCURRENT_AGENTS: "16"
+      SANDBOX_TIMEOUT_SECONDS: "30"
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # -------------------------------------------------------------
+  # 3. Python Agent Brain (LangGraph ReAct Reasoning Engine)
+  # -------------------------------------------------------------
+  agent-brain:
+    build:
+      context: ./agent-brain
+      dockerfile: Dockerfile
+    container_name: chatbolt-agent-brain
+    restart: unless-stopped
+    environment:
+      PORT: "8082"
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-chatbolt-internal-secret-production-key}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    ports:
+      - "8082:8082"
+    depends_on:
+      - agent-runtime
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # -------------------------------------------------------------
+  # 4. Node.js API Gateway (Auth, Routes, SSE, Billing, Webhooks)
+  # -------------------------------------------------------------
+  chatai-backend:
+    build:
+      context: ./chatai-backend
+      dockerfile: Dockerfile
+    container_name: chatbolt-backend
+    restart: unless-stopped
+    environment:
+      PORT: "5000"
+      DATABASE_URL: "postgresql://postgres:${DB_PASSWORD:-postgres_password_change_me}@postgres:5432/chatai"
+      VAULT_ENCRYPTION_KEY: ${VAULT_ENCRYPTION_KEY:-master_vault_encryption_key_32_bytes_min}
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-chatbolt-internal-secret-production-key}
+      AGENT_RUNTIME_URL: "http://agent-runtime:8081"
+      AGENT_BRAIN_URL: "http://agent-brain:8082"
+      SUPABASE_URL: ${SUPABASE_URL:-http://localhost:8000}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      agent-runtime:
+        condition: service_healthy
+      agent-brain:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  pgdata:
+    driver: local

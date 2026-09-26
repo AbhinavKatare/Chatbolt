@@ -33,16 +33,18 @@ export async function runCodeAgent(
     // ── LangGraph Python Agent-Brain Reasoning Loop Path ──
     if (agentBrainClient.isRoleMigrated('code') && (await agentBrainClient.isAvailable())) {
       try {
-        runEmitter.emitEvent(runId, 'agent_progress', { message: 'Reasoning and generating code via Python LangGraph Brain...' })
+        runEmitter.emitEvent(runId, 'agent_progress', { message: 'Reasoning and generating targeted diffs via Python LangGraph Brain...' })
         const brainRes = await agentBrainClient.executeStep({
           run_id: runId,
           agent_id: agent.id,
           agent_role: 'code',
           agent_name: agent.name,
-          system_prompt: agent.system_prompt,
+          system_prompt: (agent.system_prompt || '') + '\n\nDiff-First Rule: When editing existing files (>20 lines or >500 bytes), produce targeted diffs with apply_file_diff instead of rewriting full files.',
           task: `${taskType} ${language} code for task: ${agent.description}`,
           context: codeContext,
           available_tools: [
+            { name: 'apply_file_diff', description: 'Apply targeted diff hunks or unified diff to a file instead of full rewrite' },
+            { name: 'semantic_code_search', description: 'Search semantic repository chunks returning exact file:line references' },
             { name: 'node_sandbox', description: 'Execute JavaScript/Node code in isolated sandbox' },
             { name: 'python_sandbox', description: 'Execute Python code in isolated sandbox' }
           ],

@@ -143,12 +143,15 @@ export const api = {
 
   billing: {
     plans: () => req<{ plans: any[] }>('GET', '/billing/plans'),
-    checkout: (plan: string, interval?: string) => req<{ url: string }>('POST', '/billing/checkout', { plan, interval }),
+    plan: () => req<{ plan: any }>('GET', '/billing/plan'),
+    checkout: (plan: string, interval = 'monthly') => req<{ url: string }>('POST', '/billing/checkout', { plan, interval }),
     portal: () => req<{ url: string }>('POST', '/billing/portal'),
     subscription: () => req<{ subscription: any; plan: string }>('GET', '/billing/subscription'),
+    entitlements: () => req<{ plan: string; isEnterpriseLicensed: boolean; source: string; features: Record<string, boolean>; verifiedAt: string }>('GET', '/billing/entitlements'),
     toggleOverage: (enabled: boolean) => req<{ success: boolean; overage_enabled: boolean }>('POST', '/billing/overage/toggle', { enabled }),
     checkAnnualNudge: () => req<{ eligible: boolean }>('GET', '/billing/annual-nudge-check'),
     dismissAnnualNudge: () => req<{ success: boolean }>('POST', '/billing/annual-nudge-dismiss'),
+    activateLicense: (licenseKey: string) => req<{ success: boolean; message: string; entitlements: any }>('POST', '/billing/activate-license', { licenseKey }),
     credits: () => req<{ credits_remaining: number; credits_monthly: number; plan: string; history: any[] }>('GET', '/billing/credits'),
     usage: () => req<{
       tasks: { allowed: boolean; current: number; limit: number }

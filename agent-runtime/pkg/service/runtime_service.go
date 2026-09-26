@@ -19,6 +19,7 @@ import (
 type RuntimeService struct {
 	pool           *concurrency.WorkerPool
 	sandboxExec    *sandbox.Executor
+	diffPatcher    *sandbox.DiffPatcher
 	bus            *bus.AgentBus
 	circuitBreaker *circuitbreaker.Registry
 	metrics        *metrics.Collector
@@ -35,6 +36,7 @@ func NewRuntimeService(
 	return &RuntimeService{
 		pool:           pool,
 		sandboxExec:    exec,
+		diffPatcher:    sandbox.NewDiffPatcher(),
 		bus:            agentBus,
 		circuitBreaker: cb,
 		metrics:        col,
@@ -199,6 +201,7 @@ func (s *RuntimeService) RegisterHTTPRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/metrics", s.handleMetrics)
 	mux.HandleFunc("/api/circuit-breaker", s.handleCircuitBreaker)
 	mux.HandleFunc("/api/sandbox/exec", s.handleSandboxExec)
+	mux.HandleFunc("/api/sandbox/apply_diff", s.handleApplyDiff)
 	mux.HandleFunc("/api/agent/step", s.handleAgentStep)
 	mux.HandleFunc("/api/bus/publish", s.handleBusPublish)
 	mux.HandleFunc("/api/bus/subscribe", s.handleBusSubscribe)
@@ -416,3 +419,40 @@ func (s *RuntimeService) GetMetricsCollector() *metrics.Collector {
 func (s *RuntimeService) GetSandboxExecutor() *sandbox.Executor {
 	return s.sandboxExec
 }
+
+// GetDiffPatcher returns the diff patcher instance
+func (s *RuntimeService) GetDiffPatcher() *sandbox.DiffPatcher {
+	return s.diffPatcher
+}
+
+func (s *RuntimeService) handleApplyDiff(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req sandbox.ApplyDiffRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid JSON: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	sandboxRoot := s.sandboxExec.GetSandboxRoot()
+	res, err := s.diffPatcher.ApplyDiff(sandboxRoot, req)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if !res.Success {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+	}
+	_ = json.NewEncoder(w).Encode(res)
+}
+

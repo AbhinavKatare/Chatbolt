@@ -230,3 +230,11 @@ func killProcessTree(cmd *exec.Cmd) {
 		_ = cmd.Process.Kill()
 	}
 }
+
+// GetSandboxRoot returns the base sandbox directory
+func (e *Executor) GetSandboxRoot() string {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.baseTempDir
+}
+

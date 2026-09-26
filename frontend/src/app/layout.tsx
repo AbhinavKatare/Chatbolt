@@ -4,6 +4,8 @@ import Footer from '@/components/Footer'
 import Script from 'next/script'
 import SessionListener from '@/components/SessionListener'
 
+import { ToastProvider } from '@/components/ui/Toast'
+
 export const metadata: Metadata = {
   title: 'Chatbolt — Customer Support Platform',
   description: 'Build and deploy support assistants trained on your business data. Handle customer queries automatically, 24/7. Trusted by 10,000+ businesses.',
@@ -35,7 +37,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="antialiased bg-[#F9F9F9] text-[#1A1A1A] min-h-screen flex flex-col">
         <SessionListener />
-        <main className="flex-1">{children}</main>
+        <ToastProvider>
+          <main className="flex-1">{children}</main>
+        </ToastProvider>
         <Footer />
       </body>
     </html>

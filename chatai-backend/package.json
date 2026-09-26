@@ -5,9 +5,10 @@
   "scripts": {
     "predev": "node -e \"try{require(\\\"child_process\\\").execSync(\\\"npx kill-port 4000\\\",{stdio:\\\"ignore\\\"})}catch{}\"",
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "test": "tsx src/tests/security-regression.test.ts",
+    "test": "tsx src/tests/security-regression.test.ts && tsx src/tests/team-workforce.test.ts && tsx src/tests/failure-recovery.test.ts && tsx src/tests/company-orchestration.test.ts && tsx src/tests/agent-concurrency-load.test.ts && tsx src/tests/enterprise-license-gate.test.ts && tsx src/tests/entitlement-billing.test.ts && tsx src/tests/polyglot-e2e-verification.test.ts && tsx src/tests/metering-transparency.test.ts && tsx src/tests/diff-editing-and-code-search.test.ts && tsx src/tests/permission-trust-system.test.ts && tsx src/tests/agent-competency-eval.test.ts && tsx src/tests/session-replay-and-memory.test.ts && tsx src/tests/cli-and-dashboard-sync.test.ts && tsx src/tests/enterprise-security-posture.test.ts && tsx src/tests/benchmarks/context-efficiency-benchmark.ts",
+    "benchmark": "tsx src/tests/benchmarks/context-efficiency-benchmark.ts",
+
+
     "db:migrate": "tsx src/db/migrate.ts"
   },
 
