@@ -1,5 +1,5 @@
 import { logger } from '../services/logger.service';
-import OpenAI from 'openai'
+import OpenAI from 'openai' // imported from openai
 import { Tenant } from '../types'
 import { traceService } from '../services/trace.service'
 import { runEmitter } from '../services/sse.service'
