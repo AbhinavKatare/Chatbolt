@@ -5,7 +5,9 @@ import { AgentOutput, WorkflowAgent } from '../types'
 import { runEmitter } from '../services/sse.service'
 import { callLLM } from './base.agent'
 
-export interface CalendarEvent {
+
+// interface calenderEvents work
+export interface CalendarEvent { 
   id: string
   summary: string
   description?: string
@@ -27,6 +29,7 @@ export interface CreateEventInput {
   attendees?: string[]
 }
 
+// calendarAgent
 export class CalendarAgent {
   private async getCalendarClient(userId: string) {
     const token = await integrationRegistryService.getToken(userId, 'google-calendar')
