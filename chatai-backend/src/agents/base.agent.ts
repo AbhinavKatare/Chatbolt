@@ -30,7 +30,7 @@ function getHFClient(): OpenAI {
       timeout: 15000
     })
   }
-  return _hfClient
+  return _hfClient // hfclient mentioned
 }
 
 // 1.5 Mistral AI (High-performance Alternative)
