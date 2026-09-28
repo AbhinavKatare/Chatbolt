@@ -1,7 +1,7 @@
 import { logger } from '../services/logger.service';
 import { executeApiRequest } from '../tools/api-caller.tool'
 import { callLLM, safeParseJSON } from './base.agent'
-import { AgentOutput, WorkflowAgent } from '../types'
+import { WorkflowAgent, AgentOutput } from '../types'
 import { runEmitter } from '../services/sse.service'
 import { traceService } from '../services/trace.service'
 
