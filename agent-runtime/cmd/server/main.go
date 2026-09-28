@@ -22,7 +22,7 @@ import (
 func main() {
 	log.Println("⚡ Starting Chatbolt Agent-Runtime Service...")
 
-	// 1. Parse configuration from environment
+	// 1. Parse configuration from environment, (its necessary for environment variable)
 	httpPort := getEnv("PORT", getEnv("HTTP_PORT", "8081"))
 	maxWorkers, _ := strconv.Atoi(getEnv("MAX_CONCURRENT_AGENTS", "16"))
 	minWorkers, _ := strconv.Atoi(getEnv("MIN_CONCURRENT_AGENTS", "4"))
